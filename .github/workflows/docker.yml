@@ -36,7 +36,54 @@ jobs:
             type=raw,value=latest
             type=sha,format=short
 
-      - uses: docker/build-push-action@v6
+      # Constrói primeiro uma imagem local para testar antes de publicar.
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: medicine-planner:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container on port 1380
+        run: |
+          docker run -d --name mp -p 1380:1380 medicine-planner:test
+          for i in $(seq 1 30); do curl -fs http://localhost:1380/ >/dev/null && break; sleep 1; done
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:1380$1")
+            echo "$1 -> $code"
+            [ "$code" = "$2" ] || { docker logs mp; exit 1; }
+          }
+          check / 200
+          check /history/ 200
+          check /medications/ 200
+          check /medications/new/?scan=1 200
+          check "/medications/view/?id=test" 200
+          check /medications/edit/ 200
+          check /settings/ 200
+          check /medications/__next.medications.__PAGE__.txt 200
+          check /sw.js 200
+          check /manifest.webmanifest 200
+          check /icons/apple-touch-icon.png 200
+          check /does-not-exist/ 404
+          check /medications 301
+          curl -sI http://localhost:1380/medications | grep -i '^location: /medications/'
+          asset=$(curl -s http://localhost:1380/ | grep -o '/_next/static/[^"]*\.js' | head -1)
+          check "$asset" 200
+          curl -sI http://localhost:1380/manifest.webmanifest | grep -i '^content-type: application/manifest+json'
+          curl -sI http://localhost:1380/sw.js | grep -i '^cache-control: no-cache'
+          curl -sI "http://localhost:1380$asset" | grep -i 'immutable'
+          curl -s http://localhost:1380/ | grep -q 'manifest.webmanifest'
+          for i in $(seq 1 20); do
+            s=$(docker inspect -f '{{.State.Health.Status}}' mp); echo "health: $s"
+            [ "$s" = healthy ] && break; [ "$s" = unhealthy ] && exit 1; sleep 3
+          done
+          [ "$s" = healthy ]
+          docker rm -f mp
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true

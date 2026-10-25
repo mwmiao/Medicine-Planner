@@ -58,13 +58,13 @@ services:
     image: eazyeight/medicine-planner:latest
     container_name: medicine-planner
     ports:
-      - "8080:80"
+      - "1380:1380"
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
 ```
 
-**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:8080` a app abre, mas fica sem modo offline e usa "Escolher fotografia" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel).
+**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:1380` a app abre, mas fica sem modo offline e usa "Escolher fotografia" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel).
 
 Os dados continuam guardados no iPhone, não no NAS: o contentor só serve os ficheiros da app.
 
