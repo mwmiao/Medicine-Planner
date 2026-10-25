@@ -1,0 +1,33 @@
+{
+  "name": "medicine-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Planeador de medicação simples, bilingue (pt-PT / 中文), local-first e instalável como PWA.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && node scripts/postbuild-export.mjs",
+    "start": "npx serve out",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.0",
+    "fake-indexeddb": "^6.2.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

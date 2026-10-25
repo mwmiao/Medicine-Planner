@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1d4ed8;
+  --color-primary-soft: #dbeafe;
+  --color-taken: #15803d;
+  --color-taken-soft: #dcfce7;
+  --color-overdue: #b45309;
+  --color-overdue-soft: #fef3c7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fee2e2;
+  --color-ink: #111827;
+  --color-muted: #4b5563;
+  --color-line: #d1d5db;
+  --color-canvas: #f5f7fb;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+/* Modo de texto grande: tudo está em rem, por isso basta mudar a raiz. */
+html {
+  font-size: 112.5%;
+  -webkit-text-size-adjust: 100%;
+}
+html[data-text-size="large"] {
+  font-size: 131.25%;
+}
+html[data-text-size="xlarge"] {
+  font-size: 150%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.px-safe {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+input,
+select,
+textarea {
+  font-size: 1rem;
+}
