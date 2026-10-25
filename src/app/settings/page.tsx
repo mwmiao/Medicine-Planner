@@ -2,12 +2,14 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SyncSection } from "@/components/SyncSection";
 import { toast } from "@/components/Toast";
 import { Button, Card, ExternalLink, Notice, PageTitle } from "@/components/ui";
 import { backupFileName, deleteAllData, exportData, importData } from "@/lib/backup";
 import { useMessages } from "@/lib/i18n";
 import { INFOMED_SEARCH_URL } from "@/lib/infarmed/urls";
 import { setLocale, setTextSize, useTextSize } from "@/lib/settings";
+import { getSync } from "@/lib/sync";
 import type { Locale, TextSize } from "@/lib/types";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -79,6 +81,7 @@ export default function SettingsPage() {
     if (!text) return;
     try {
       const backup = await importData(text);
+      getSync().markReplaceAll();
       setImportError(false);
       toast(m.settings.imported(backup.medications.length));
     } catch {
@@ -98,6 +101,8 @@ export default function SettingsPage() {
       <Section title={m.settings.language}>
         <Choice<Locale> value={locale} options={[["pt", "Português"], ["zh", "中文"]]} onChange={setLocale} />
       </Section>
+
+      <SyncSection />
 
       <Section title={m.settings.textSize}>
         <Choice<TextSize>
@@ -208,6 +213,7 @@ export default function SettingsPage() {
         onConfirm={async () => {
           setDeleteStep(0);
           await deleteAllData();
+          getSync().markReplaceAll();
           toast(m.settings.deletedAll);
         }}
       >

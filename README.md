@@ -3,7 +3,7 @@
 Aplicação web (PWA) simples e bilingue — **português europeu** e **chinês simplificado** — para ajudar uma pessoa idosa a tomar os medicamentos a horas, no iPhone, a partir de um atalho no ecrã principal.
 
 - Mostra as tomas de hoje, com botões grandes: **"Já tomei"** e **"Adiar 15 min"**.
-- Guarda tudo **apenas no telemóvel** (IndexedDB, via Dexie.js). Não há conta, login nem servidor.
+- Guarda tudo no telemóvel (IndexedDB, via Dexie.js) e, opcionalmente, **no NAS da família** (sincronização sem contas, com um código). Não há login.
 - Lê o texto da caixa com a câmara (OCR com Tesseract.js, no próprio telemóvel).
 - Liga cada medicamento ao registo oficial do **INFARMED / INFOMED**.
 - Funciona offline depois da primeira utilização.
@@ -28,7 +28,7 @@ Outros comandos:
 | Comando | O que faz |
 | --- | --- |
 | `npm run build` | Gera a versão estática final na pasta `out/` |
-| `npm start` | Serve a pasta `out/` localmente (como em produção, com service worker) |
+| `npm start` | Serve a pasta `out/` com o servidor do NAS (`SYNC_CODE=… npm start` liga a sincronização) |
 | `npm test` | Corre os testes (Vitest + fake-indexeddb) |
 | `npm run typecheck` | Verifica os tipos TypeScript |
 | `npm run icons` | Volta a gerar os ícones PNG em `public/icons/` |
@@ -59,14 +59,39 @@ services:
     container_name: medicine-planner
     ports:
       - "1380:1380"
+    environment:
+      # Código longo e aleatório (ex.: `openssl rand -hex 16`). Sem ele, a sincronização fica desligada.
+      SYNC_CODE: "troque-por-um-codigo-longo-e-aleatorio"
+    volumes:
+      - medicine-planner-data:/data
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
+
+volumes:
+  medicine-planner-data:
 ```
 
-**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:1380` a app abre, mas fica sem modo offline e usa "Escolher fotografia" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel).
+**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:1380` a app abre, mas fica sem modo offline e usa "Escolher da galeria" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel). O código de sincronização viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
 
-Os dados continuam guardados no iPhone, não no NAS: o contentor só serve os ficheiros da app.
+### Guardar os dados no NAS (sincronização)
+
+No iPhone, o Safari e a app adicionada ao ecrã principal têm **armazenamento separado**: o que se escreve num não aparece no outro. O mesmo acontece com endereços diferentes (IP, nome, http/https). Para os dados nunca se perderem, a imagem Docker inclui um pequeno servidor (`server/server.mjs`, só Node, sem dependências) que:
+
+- serve a app (como o nginx fazia: cache, 404, redirecionamentos relativos);
+- guarda os dados em `/data/medicine-planner.json` (volume), com escrita atómica;
+- mantém as últimas 50 versões em `/data/history/` (`HISTORY_KEEP` para mudar);
+- exige o **código de sincronização** (`SYNC_CODE`) — não há contas; bloqueia após 10 códigos errados em 15 minutos.
+
+No telemóvel: **Definições → Guardar no NAS** → escrever o código → **Ligar ao NAS**. Faça isto em **cada** sítio onde a app é usada (Safari e ecrã principal): a primeira ligação **junta** os dados de ambos. Depois a app:
+
+- continua a funcionar sem rede (os dados ficam também no telemóvel);
+- sincroniza ao abrir, ao voltar à app, quando a rede volta, a cada minuto e logo depois de cada alteração;
+- junta alterações dos dois lados: ganha a mais recente, apagar não "ressuscita", e **uma toma marcada como tomada nunca é substituída por "adiada"** (só "Desfazer" a remove) — para evitar doses a dobrar.
+
+"Importar dados" e "Apagar todos os dados" substituem também a cópia do NAS. Para recuperar uma versão antiga, copie um ficheiro de `/data/history/` para `/data/medicine-planner.json` com o contentor parado.
+
+Se usar uma pasta do NAS em vez de um volume (`./data:/data`), dê-lhe permissões ao utilizador 1000 (`chown 1000:1000 data`), porque o servidor não corre como root.
 
 ## 3. Adicionar ao ecrã principal do iPhone
 

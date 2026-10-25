@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useMessages } from "@/lib/i18n";
+import { startSync } from "@/lib/sync";
 import { BottomNav } from "./BottomNav";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ReminderWatcher } from "./ReminderWatcher";
@@ -24,6 +25,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
+    // Pede ao navegador para não apagar os dados quando falta espaço.
+    void navigator.storage?.persist?.().catch(() => false);
+    return startSync();
   }, []);
 
   return (

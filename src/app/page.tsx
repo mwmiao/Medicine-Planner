@@ -10,12 +10,15 @@ import { markTaken, snoozeDose, undoDose } from "@/lib/doses";
 import { formatDose } from "@/lib/format";
 import { useMedications, useTodayDoses } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
+import { useSyncAvailable, useSyncState } from "@/lib/sync";
 import { summarize, type Dose } from "@/lib/schedule";
 
 export default function TodayPage() {
   const { m, locale } = useMessages();
   const { doses, now } = useTodayDoses();
   const meds = useMedications();
+  const syncAvailable = useSyncAvailable();
+  const sync = useSyncState();
   const [confirming, setConfirming] = useState<Dose | null>(null);
   const [undoing, setUndoing] = useState<Dose | null>(null);
 
@@ -39,6 +42,27 @@ export default function TodayPage() {
   return (
     <>
       <PageTitle sub={dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}>{m.today.title}</PageTitle>
+
+      {syncAvailable && sync.status === "off" ? (
+        <div className="mb-4">
+          <Notice tone="warn">
+            <p className="font-bold">☁️ {m.sync.todayPrompt}</p>
+            <div className="mt-2">
+              <LinkButton href="/settings/" block>
+                {m.sync.todayPromptAction}
+              </LinkButton>
+            </div>
+          </Notice>
+        </div>
+      ) : sync.status === "unauthorized" || sync.status === "unavailable" || sync.status === "error" ? (
+        <div className="mb-4">
+          <Notice tone="error">
+            <a href="/settings/" className="underline">
+              {m.sync.todayProblem}
+            </a>
+          </Notice>
+        </div>
+      ) : null}
 
       {meds.length === 0 ? (
         <Card className="text-center">

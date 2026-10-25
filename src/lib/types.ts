@@ -94,6 +94,8 @@ export type DoseLog = {
   takenAt?: string;
   snoozedUntil?: string;
   status: DoseStatus;
+  /** Quando o registo foi alterado (ISO), para juntar cópias sincronizadas. */
+  updatedAt?: string;
 };
 
 /** Registo do INFOMED guardado em cache local, com data de obtenção. */

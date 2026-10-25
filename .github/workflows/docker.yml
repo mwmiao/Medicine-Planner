@@ -1,6 +1,6 @@
 name: Docker image
 
-# A cada push para main: testa, gera a app e publica a imagem no Docker Hub.
+# A cada push para main: testa, gera a app, verifica o contentor e publica a imagem no Docker Hub.
 # O Watchtower no NAS deteta a nova tag "latest" e atualiza o contentor.
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
 
       - name: Smoke test container on port 1380
         run: |
-          docker run -d --name mp -p 1380:1380 medicine-planner:test
+          docker run -d --name mp -p 1380:1380 -e SYNC_CODE=ci-sync-code -v mpdata:/data medicine-planner:test
           for i in $(seq 1 30); do curl -fs http://localhost:1380/ >/dev/null && break; sleep 1; done
           check() {
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:1380$1")
@@ -80,6 +80,20 @@ jobs:
             [ "$s" = healthy ] && break; [ "$s" = unhealthy ] && exit 1; sleep 3
           done
           [ "$s" = healthy ]
+          # Sincronização: código obrigatório, gravação e persistência no volume.
+          check /api/health 200
+          curl -s http://localhost:1380/api/health | grep -q '"sync":true'
+          check /api/data 401
+          A='Authorization: Bearer ci-sync-code'
+          curl -fs -H "$A" http://localhost:1380/api/data | grep -q '"revision":0'
+          curl -fs -X PUT -H "$A" -H 'Content-Type: application/json'             -d '{"baseRevision":0,"data":{"medications":[],"doseLogs":[]}}' http://localhost:1380/api/data | grep -q '"revision":1'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$A" -H 'Content-Type: application/json'             -d '{"baseRevision":0,"data":{"medications":[],"doseLogs":[]}}' http://localhost:1380/api/data)
+          [ "$code" = 409 ] || { echo "expected 409, got $code"; exit 1; }
+          docker rm -f mp
+          docker run -d --name mp -p 1380:1380 -e SYNC_CODE=ci-sync-code -v mpdata:/data medicine-planner:test
+          for i in $(seq 1 30); do curl -fs http://localhost:1380/api/health >/dev/null && break; sleep 1; done
+          curl -fs -H "$A" http://localhost:1380/api/data | grep -q '"revision":1'
+          echo "data survived container recreation"
           docker rm -f mp
 
       - name: Build and push multi-arch image

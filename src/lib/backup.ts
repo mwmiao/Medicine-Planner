@@ -30,7 +30,7 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === "string";
 
-function isMedication(v: unknown): v is Medication {
+export function isMedication(v: unknown): v is Medication {
   return (
     isObj(v) &&
     isStr(v.id) &&
@@ -47,11 +47,11 @@ function isMedication(v: unknown): v is Medication {
   );
 }
 
-function isDoseLog(v: unknown): v is DoseLog {
+export function isDoseLog(v: unknown): v is DoseLog {
   return isObj(v) && isStr(v.id) && isStr(v.medicationId) && isStr(v.scheduledFor) && isStr(v.status);
 }
 
-function isInfarmedRecord(v: unknown): v is InfarmedRecord {
+export function isInfarmedRecord(v: unknown): v is InfarmedRecord {
   return isObj(v) && isStr(v.id) && isStr(v.name) && isStr(v.retrievedAt);
 }
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/postbuild-export.mjs",
-    "start": "npx serve out",
+    "start": "node server/server.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

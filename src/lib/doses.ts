@@ -17,6 +17,7 @@ export async function markTaken(
     scheduledFor,
     takenAt: now.toISOString(),
     status: "taken",
+    updatedAt: now.toISOString(),
   };
   await database.doseLogs.put(log);
   return log;
@@ -34,6 +35,7 @@ export async function snoozeDose(
     scheduledFor,
     snoozedUntil: toLocalDateTime(addMinutes(now, SNOOZE_MINUTES)),
     status: "snoozed",
+    updatedAt: now.toISOString(),
   };
   await database.doseLogs.put(log);
   return log;
