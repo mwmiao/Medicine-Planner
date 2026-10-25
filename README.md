@@ -46,6 +46,28 @@ A app é **100 % estática** (`output: "export"`), por isso pode ser alojada em 
 
 Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando: `npm run build`).
 
+### Alternativa: Docker no NAS (com Watchtower)
+
+A cada push para `main`, o GitHub Actions (`.github/workflows/docker.yml`) corre os testes, gera a app e publica a imagem `eazyeight/medicine-planner:latest` (amd64 e arm64) no Docker Hub. São precisos os segredos `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
+
+Exemplo de `docker-compose.yml` no NAS:
+
+```yaml
+services:
+  medicine-planner:
+    image: eazyeight/medicine-planner:latest
+    container_name: medicine-planner
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+```
+
+**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:8080` a app abre, mas fica sem modo offline e usa "Escolher fotografia" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel).
+
+Os dados continuam guardados no iPhone, não no NAS: o contentor só serve os ficheiros da app.
+
 ## 3. Adicionar ao ecrã principal do iPhone
 
 1. Abra o endereço da app no **Safari** (tem de ser o Safari).
