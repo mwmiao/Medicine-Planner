@@ -279,7 +279,7 @@ export const pt = {
     intro: "Os dados ficam guardados no NAS da família e neste telemóvel. Assim não se perdem se o iPhone apagar os dados, se mudar de telemóvel, ou se abrir a app no Safari em vez do ecrã principal.",
     unavailable: "Este servidor não tem armazenamento no NAS. Os dados ficam só neste telemóvel — faça cópias de segurança.",
     codeLabel: "Código de sincronização",
-    codeHint: "O código definido no NAS (SYNC_CODE).",
+    codeHint: "peça-o a quem instalou a app",
     connect: "Ligar ao NAS",
     connecting: "A ligar…",
     connected: "Ligado ao NAS",

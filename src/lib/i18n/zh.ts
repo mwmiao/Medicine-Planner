@@ -266,7 +266,7 @@ export const zh: Messages = {
     intro: "资料会同时保存在家里的 NAS 和这部手机上。这样即使 iPhone 清除了资料、换了手机，或者用 Safari 打开而不是主屏幕图标，资料也不会丢失。",
     unavailable: "这个服务器没有 NAS 存储。资料只保存在这部手机上，请定期备份。",
     codeLabel: "同步码",
-    codeHint: "NAS 上设置的同步码（SYNC_CODE）。",
+    codeHint: "请向安装应用的人索取",
     connect: "连接 NAS",
     connecting: "正在连接…",
     connected: "已连接 NAS",
