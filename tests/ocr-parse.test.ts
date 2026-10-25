@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestSearchTerm, isUnclear, parseBoxText } from "@/lib/ocr/parse";
+import { bestSearchTerm, isUnclear, parseBoxText, parseOcr } from "@/lib/ocr/parse";
 
 describe("leitura do texto da caixa", () => {
   it("encontra nome, dosagem, forma, quantidade, validade e fabricante", () => {
@@ -13,6 +13,24 @@ describe("leitura do texto da caixa", () => {
     expect(p.activeSubstance).toBe("Paracetamol");
     expect(p.manufacturer).toContain("Lda");
     expect(bestSearchTerm(p)).toBe("Ben-u-ron");
+  });
+
+  it("separa o fabricante do lote/validade e limpa pontuação solta", () => {
+    const p = parseBoxText(["ben-u-ron", "500 mg comprimidos", "Paracetamol!", "Lote: 23B417 VAL: 05/2027 Bene Farmacêutica, Lda."].join("\n"));
+    expect(p.activeSubstance).toBe("Paracetamol");
+    expect(p.manufacturer).toBe("Bene Farmacêutica, Lda.");
+    expect(p.expiry).toBe("05/2027");
+  });
+
+  it("recupera a dosagem do texto completo quando o 'mg' foi descartado", () => {
+    const clean = ["ben-u-ron", "500 comprimidos", "Paracetamol", "20 comprimidos", "Lote: 23B417 VAL: 05/2027"].join("\n");
+    const raw = ["ben-u-ron", "500 mg comprimidos", "Paracetamol!", "20 comprimidos", "Lote: 23B417 VAL: 05/2027"].join("\n");
+    const p = parseOcr(clean, raw);
+    expect(p.strength).toBe("500 mg");
+    expect(p.packCount).toBe("20");
+    expect(p.activeSubstance).toBe("Paracetamol");
+    expect(parseBoxText(clean).packCount).toBe("20");
+    expect(parseBoxText(clean).activeSubstance).toBe("Paracetamol");
   });
 
   it("lê caixas em chinês", () => {

@@ -30,7 +30,7 @@ const FORMS: { re: RegExp; label: string }[] = [
   { re: /片/, label: "片" },
 ];
 
-const PACK_RE = /(\d{1,3})\s*(?:x\s*)?(comprimidos?|c[áa]psulas?|saquetas?|unidades|片|粒|袋)/i;
+const PACK_RE = /(\d{1,3})\s*(?:x\s*)?(comprimidos?|c[áa]psulas?|saquetas?|unidades|片|粒|袋)/iu;
 
 const EXPIRY_RE =
   /(?:val(?:idade)?|exp|有效期至?|失效期)\.?\s*[:：]?\s*(\d{1,2}[\/.\-]\d{2,4}|\d{4}[\/.\-]\d{1,2}(?:[\/.\-]\d{1,2})?)/i;
@@ -53,6 +53,19 @@ function isFormLine(l: string): boolean {
   return FORMS.some((f) => f.re.test(l)) && l.split(" ").length <= 4;
 }
 
+/** Isola o nome da empresa numa linha que também pode ter lote/validade. */
+function companyName(line: string): string {
+  const latin = line.match(/(\p{Lu}[\p{L}.&'-]*(?:\s+[\p{L}.&'-]+){0,4}?,?\s+(?:Lda\.?|S\.A\.?|GmbH|Ltd\.?|Inc\.?))/u);
+  if (latin) return latin[1].trim();
+  const zh = line.match(/[\p{Script=Han}]{2,}(?:有限公司|制药|药业)/u);
+  return (zh?.[0] ?? line).trim().slice(0, 60);
+}
+
+/** Remove pontuação solta que o OCR junta às palavras (ex.: "Paracetamol!"). */
+function trimNoise(s: string): string {
+  return s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}.)]+$/gu, "").trim();
+}
+
 function titleCase(s: string): string {
   if (s !== s.toUpperCase()) return s;
   return s.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_m, a: string, b: string) => a + b.toUpperCase());
@@ -69,14 +82,17 @@ export function parseBoxText(raw: string): ParsedBox {
 
   out.form = FORMS.find((f) => f.re.test(text))?.label;
 
-  const p = text.match(PACK_RE);
-  if (p) out.packCount = p[1];
+  // Quantidade na caixa: ignora o número da dosagem ("500 comprimidos" quando o
+  // OCR perdeu o "mg") e prefere valores realistas para uma embalagem.
+  const strengthNum = s?.[1];
+  const packs = [...text.matchAll(new RegExp(PACK_RE, "giu"))].map((x) => x[1]).filter((n) => n !== strengthNum);
+  out.packCount = packs.find((n) => Number(n) > 0 && Number(n) <= 200) ?? packs[0];
 
   const e = text.match(EXPIRY_RE);
   if (e) out.expiry = e[1];
 
-  const manu = lines.find((l) => MANUFACTURER_RE.test(l) && l.length <= 60);
-  if (manu) out.manufacturer = manu;
+  const manu = lines.find((l) => MANUFACTURER_RE.test(l));
+  if (manu) out.manufacturer = companyName(manu);
 
   // Na linha da dosagem, o texto antes do número é normalmente o nome
   // (ex.: "Ben-u-ron 500 mg comprimidos").
@@ -94,17 +110,37 @@ export function parseBoxText(raw: string): ParsedBox {
     out.name = candidates.find((l) => l === l.toUpperCase() && /[A-Z]/.test(l)) ?? candidates[0];
   }
 
-  // Substância ativa: linha junto à dosagem, diferente do nome.
+  // Substância ativa: linha junto à dosagem, diferente do nome. Sem dosagem,
+  // uma linha curta só com letras logo a seguir ao nome (ex.: "Paracetamol").
   if (strengthIdx >= 0) {
     const near = [lines[strengthIdx + 1], lines[strengthIdx - 1]].find(
       (l) => l !== undefined && l !== out.name && usable(l) && !STRENGTH_RE.test(l),
     );
     if (near) out.activeSubstance = near;
+  } else if (out.name) {
+    const after = lines.slice(lines.indexOf(out.name) + 1, lines.indexOf(out.name) + 4);
+    out.activeSubstance = after.find((l) => usable(l) && /^[\p{L}-]+(?: [\p{L}-]+){0,2}$/u.test(l) && !PACK_RE.test(l));
   }
 
-  if (out.name) out.name = titleCase(out.name);
-  if (out.activeSubstance) out.activeSubstance = titleCase(out.activeSubstance);
+  if (out.name) out.name = titleCase(trimNoise(out.name)) || undefined;
+  if (out.activeSubstance) out.activeSubstance = titleCase(trimNoise(out.activeSubstance)) || undefined;
   return out;
+}
+
+/**
+ * Combina a leitura limpa com a leitura completa: os campos com padrão fixo
+ * (dosagem, validade, quantidade) também podem ser encontrados no texto
+ * completo, mesmo que a palavra tenha sido descartada por baixa confiança.
+ */
+export function parseOcr(cleanText: string, rawText: string): ParsedBox {
+  const fromClean = parseBoxText(cleanText);
+  const fromRaw = parseBoxText(rawText);
+  return {
+    ...fromClean,
+    strength: fromClean.strength ?? fromRaw.strength,
+    expiry: fromClean.expiry ?? fromRaw.expiry,
+    packCount: fromClean.strength || !fromRaw.strength ? fromClean.packCount : fromRaw.packCount,
+  };
 }
 
 /** Melhor termo para pesquisar no INFARMED. */
