@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useTodayDoses } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
+import { remindersEnabled } from "@/lib/push";
 
 // Lembretes locais: enquanto a app está aberta, quando uma toma chega à hora
 // mostra uma faixa no topo, faz um som curto e, se o utilizador permitiu,
@@ -70,7 +71,8 @@ export function ReminderWatcher() {
     setBanner(text);
     chime();
     if ("vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
-    void systemNotify(text);
+    // Com lembretes do NAS ligados, a notificação vem por push: não duplicar.
+    if (!remindersEnabled()) void systemNotify(text);
   }, [doses, m]);
 
   if (!banner) return null;

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RemindersSection } from "@/components/RemindersSection";
 import { SyncSection } from "@/components/SyncSection";
 import { toast } from "@/components/Toast";
 import { Button, Card, ExternalLink, Notice, PageTitle } from "@/components/ui";
@@ -39,10 +40,6 @@ function Choice<T extends string>({ value, options, onChange }: { value: T; opti
   );
 }
 
-type Perm = NotificationPermission | "unsupported";
-const subscribeNoop = () => () => undefined;
-const readPerm = (): Perm => (typeof Notification === "undefined" ? "unsupported" : Notification.permission);
-
 export default function SettingsPage() {
   const { m, locale } = useMessages();
   const size = useTextSize();
@@ -50,9 +47,6 @@ export default function SettingsPage() {
   const [pendingImport, setPendingImport] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [importError, setImportError] = useState(false);
-  const initialPerm = useSyncExternalStore(subscribeNoop, readPerm, () => "default" as Perm);
-  const [perm, setPerm] = useState<Perm | null>(null);
-  const permission = perm ?? initialPerm;
 
   const closeImport = useCallback(() => setPendingImport(null), []);
   const closeDelete = useCallback(() => setDeleteStep(0), []);
@@ -89,11 +83,6 @@ export default function SettingsPage() {
     }
   };
 
-  const askNotifications = async () => {
-    if (typeof Notification === "undefined") return setPerm("unsupported");
-    setPerm(await Notification.requestPermission());
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <PageTitle>{m.settings.title}</PageTitle>
@@ -116,19 +105,7 @@ export default function SettingsPage() {
         />
       </Section>
 
-      <Section title={m.reminders.notificationsTitle}>
-        {permission === "granted" ? (
-          <Notice tone="success">{m.reminders.enabled}</Notice>
-        ) : permission === "denied" ? (
-          <Notice tone="warn">{m.reminders.denied}</Notice>
-        ) : permission === "unsupported" ? (
-          <Notice tone="warn">{m.reminders.unsupported}</Notice>
-        ) : (
-          <Button block onClick={() => void askNotifications()}>
-            🔔 {m.reminders.enable}
-          </Button>
-        )}
-      </Section>
+      <RemindersSection />
 
       <Section title={m.settings.remindersTitle}>
         <p className="text-lg">{m.settings.remindersIntro}</p>

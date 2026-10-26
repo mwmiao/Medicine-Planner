@@ -92,6 +92,11 @@ export class SyncEngine {
     this.listeners.forEach((l) => l());
   }
 
+  /** Código guardado neste telemóvel (também usado para os lembretes). */
+  get code(): string | null {
+    return this.kv.get(K.code);
+  }
+
   get connected(): boolean {
     return Boolean(this.kv.get(K.code));
   }

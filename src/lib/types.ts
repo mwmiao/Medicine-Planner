@@ -57,6 +57,8 @@ export type OcrExtract = {
   packCount?: string;
   expiry?: string;
   manufacturer?: string;
+  /** EAN-13 do código de barras (ou dos números por baixo dele). */
+  ean?: string;
   capturedAt: string;
 };
 
@@ -76,6 +78,8 @@ export type Medication = {
   notes?: string;
   color?: string;
   pharmaceuticalForm?: string;
+  /** EAN-13 da embalagem, para reconhecer a caixa noutra fotografia. */
+  ean?: string;
   infarmed?: InfarmedLink;
   medicalInfo?: MedicalInfo;
   ocr?: OcrExtract;
@@ -108,6 +112,7 @@ export type InfarmedRecord = {
   strength?: string;
   authorisationStatus?: string;
   holder?: string;
+  ean?: string;
   recordUrl?: string;
   leafletUrl?: string;
   spcUrl?: string;

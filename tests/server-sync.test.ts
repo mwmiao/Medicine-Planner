@@ -76,7 +76,7 @@ describe("servidor do NAS: ficheiros da app", () => {
 
 describe("servidor do NAS: API de sincronização", () => {
   it("exige o código e controla conflitos", async () => {
-    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, sync: true });
+    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, sync: true, push: true });
     expect((await fetch(`${base}/api/data`)).status).toBe(401);
     expect((await fetch(`${base}/api/data`, { headers: { Authorization: "Bearer errado" } })).status).toBe(401);
 
@@ -93,7 +93,7 @@ describe("servidor do NAS: API de sincronização", () => {
   it("sem SYNC_CODE a sincronização fica desligada", async () => {
     const off = await startServer({ SYNC_CODE: "" });
     try {
-      expect(await (await fetch(`${off.base}/api/health`)).json()).toEqual({ ok: true, sync: false });
+      expect(await (await fetch(`${off.base}/api/health`)).json()).toEqual({ ok: true, sync: false, push: false });
       expect((await fetch(`${off.base}/api/data`, { headers: auth })).status).toBe(503);
       expect(await syncAvailable(off.base)).toBe(false);
     } finally {

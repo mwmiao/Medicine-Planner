@@ -9,6 +9,8 @@ export type InfarmedMatch = {
   strength?: string;
   authorisationStatus?: string;
   holder?: string;
+  /** EAN-13 da embalagem, quando conhecido (lido na caixa e confirmado pelo utilizador). */
+  ean?: string;
   recordUrl?: string;
   leafletUrl?: string;
   spcUrl?: string;

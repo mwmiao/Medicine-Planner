@@ -1,0 +1,11 @@
+{
+  "name": "medicine-planner-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Servidor do NAS: serve a app, guarda os dados sincronizados e envia lembretes Web Push.",
+  "main": "server.mjs",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

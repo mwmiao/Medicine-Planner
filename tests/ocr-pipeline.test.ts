@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanLines, joinCjk, looksLikeText, scoreLines } from "@/lib/ocr/clean";
+import { cleanLines, comparable, looksLikeText, scoreLines } from "@/lib/ocr/clean";
 import { grayscaleStretch, guideCrop, targetScale } from "@/lib/ocr/preprocess";
 
 describe("limpeza do OCR", () => {
@@ -10,9 +10,12 @@ describe("limpeza do OCR", () => {
       { words: [{ text: "500", confidence: 90 }, { text: "mg", confidence: 88 }, { text: "Ç%#", confidence: 20 }] },
     ]);
     expect(lines).toEqual(["ben-u-ron", "500 mg"]);
-    expect(looksLikeText("阿莫西林")).toBe(true);
-    expect(joinCjk("阿 莫 西 林 胶囊 0.25 g")).toBe("阿莫西林胶囊 0.25 g");
-    expect(cleanLines([{ words: ["华北", "制药", "有", "限", "公司"].map((text) => ({ text, confidence: 90 })) }])).toEqual(["华北制药有限公司"]);
+    // Só alfabeto latino: caracteres de outros alfabetos são ruído; acentos portugueses mantêm-se.
+    expect(looksLikeText("阿莫西林")).toBe(false);
+    expect(looksLikeText("Solução")).toBe(true);
+    expect(looksLikeText("Ibuprofeno®")).toBe(true);
+    expect(cleanLines([{ words: [{ text: "Solução", confidence: 90 }, { text: "oral", confidence: 88 }, { text: "片", confidence: 95 }] }])).toEqual(["Solução oral"]);
+    expect(comparable("  ácido   acetilsalicílico ")).toBe("ÁCIDO ACETILSALICÍLICO");
     expect(looksLikeText("=")).toBe(false);
   });
 

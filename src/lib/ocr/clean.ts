@@ -1,27 +1,23 @@
 // Limpeza do resultado do Tesseract: as caixas têm logótipos, riscas e fundos
 // coloridos que o OCR transforma em "palavras" sem sentido. Ficamos só com
-// palavras com confiança suficiente e que pareçam texto real.
+// palavras em alfabeto latino (português), com confiança suficiente.
 
 export type OcrWord = { text: string; confidence: number };
 export type OcrLine = { words: OcrWord[] };
 
 export const MIN_WORD_CONFIDENCE = 60;
 
-/** Uma palavra "parece texto": tem letras ou números e não é só pontuação/ruído. */
+/** Uma palavra "parece texto": letras latinas (com acentos) ou números, não só pontuação/ruído. */
 export function looksLikeText(word: string): boolean {
   const w = word.trim();
   if (!w) return false;
-  const alnum = w.match(/[\p{L}\p{N}]/gu)?.length ?? 0;
+  // Letras de outros alfabetos são sempre ruído: a leitura é só em português.
+  if (/[^\p{Script=Latin}\p{N}\p{P}\p{S}\s]/u.test(w)) return false;
+  const alnum = w.match(/[\p{Script=Latin}\p{N}]/gu)?.length ?? 0;
   if (alnum === 0) return false;
-  if (/\p{Script=Han}/u.test(w)) return true;
-  // Palavras de uma letra só valem se forem números ou unidades conhecidas.
+  // Palavras de uma letra só valem se forem números ou "x"/"%".
   if (alnum === 1 && !/^[\d]$|^[xX%]$/.test(w.replace(/[^\p{L}\p{N}%]/gu, ""))) return false;
   return alnum / w.length >= 0.6;
-}
-
-/** O Tesseract separa os caracteres chineses com espaços ("阿 莫 西 林"); voltamos a juntá-los. */
-export function joinCjk(text: string): string {
-  return text.replace(/(\p{Script=Han})[ \t]+(?=\p{Script=Han})/gu, "$1");
 }
 
 export function cleanLines(lines: OcrLine[], minConfidence = MIN_WORD_CONFIDENCE): string[] {
@@ -29,7 +25,7 @@ export function cleanLines(lines: OcrLine[], minConfidence = MIN_WORD_CONFIDENCE
   for (const line of lines) {
     const kept = line.words.filter((w) => w.confidence >= minConfidence && looksLikeText(w.text)).map((w) => w.text.trim());
     if (!kept.length) continue;
-    const text = joinCjk(kept.join(" "));
+    const text = kept.join(" ");
     if ((text.match(/[\p{L}\p{N}]/gu)?.length ?? 0) >= 2) out.push(text);
   }
   return out;
@@ -54,4 +50,12 @@ export function scoreLines(lines: OcrLine[]): { score: number; goodChars: number
     }
   }
   return { score, goodChars, meanConfidence: count ? confSum / count : 0 };
+}
+
+/**
+ * Forma de comparação: maiúsculas e sem espaços repetidos, mas com os acentos
+ * portugueses (ã, ç, é…). Só para comparar — nunca para mostrar ou guardar.
+ */
+export function comparable(text: string): string {
+  return text.toLocaleUpperCase("pt-PT").replace(/\s+/g, " ").trim();
 }

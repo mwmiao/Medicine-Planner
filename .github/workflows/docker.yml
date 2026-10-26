@@ -94,6 +94,12 @@ jobs:
           for i in $(seq 1 30); do curl -fs http://localhost:1380/api/health >/dev/null && break; sleep 1; done
           curl -fs -H "$A" http://localhost:1380/api/data | grep -q '"revision":1'
           echo "data survived container recreation"
+          # Lembretes: chave VAPID pública, autenticação e lista de lembretes.
+          curl -fs http://localhost:1380/api/push/key | grep -q '"publicKey":"'
+          check /api/push/status 401
+          curl -fs -X PUT -H "$A" -H 'Content-Type: application/json'             -d '{"locale":"pt","jobs":[{"id":"j1","at":"2030-01-01T08:00:00Z","title":"t","body":"b","url":"/"}]}'             http://localhost:1380/api/push/jobs | grep -q '"jobs":1'
+          curl -fs -H "$A" http://localhost:1380/api/push/status | grep -q '"pendingJobs":1'
+          curl -fs -X POST -H "$A" http://localhost:1380/api/cron/tick | grep -q '"due":0'
           docker rm -f mp
 
       - name: Build and push multi-arch image

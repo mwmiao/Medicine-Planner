@@ -1,5 +1,10 @@
 // Heurísticas simples para encontrar campos no texto lido de uma caixa de
-// medicamento. São apenas sugestões: o utilizador revê e corrige tudo antes de guardar.
+// medicamento (só português / alfabeto latino). São apenas sugestões: o
+// utilizador revê e corrige tudo antes de guardar. Os nomes dos medicamentos
+// são mantidos tal como estão escritos na caixa (nunca traduzidos).
+
+import { eanFromText } from "../barcode/gs1";
+import { comparable } from "./clean";
 
 export type ParsedBox = {
   name?: string;
@@ -9,6 +14,8 @@ export type ParsedBox = {
   packCount?: string;
   expiry?: string;
   manufacturer?: string;
+  /** EAN-13 lido nos números por baixo do código de barras. */
+  ean?: string;
 };
 
 const STRENGTH_RE = /(\d+(?:[.,]\d+)?)\s?(mg\/ml|mg\/g|mg|mcg|µg|μg|g|ml|ui|%)(?![a-z])/i;
@@ -24,18 +31,14 @@ const FORMS: { re: RegExp; label: string }[] = [
   { re: /suspens[ãa]o\s+oral/i, label: "Suspensão oral" },
   { re: /pomada|creme/i, label: "Pomada/Creme" },
   { re: /saquetas?/i, label: "Saqueta" },
-  { re: /胶囊/, label: "胶囊" },
-  { re: /糖浆/, label: "糖浆" },
-  { re: /滴剂/, label: "滴剂" },
-  { re: /片/, label: "片" },
 ];
 
-const PACK_RE = /(\d{1,3})\s*(?:x\s*)?(comprimidos?|c[áa]psulas?|saquetas?|unidades|片|粒|袋)/iu;
+const PACK_RE = /(\d{1,3})\s*(?:x\s*)?(comprimidos?|c[áa]psulas?|saquetas?|unidades|ampolas?)/iu;
 
 const EXPIRY_RE =
-  /(?:val(?:idade)?|exp|有效期至?|失效期)\.?\s*[:：]?\s*(\d{1,2}[\/.\-]\d{2,4}|\d{4}[\/.\-]\d{1,2}(?:[\/.\-]\d{1,2})?)/i;
+  /(?:val(?:idade)?|exp)\.?\s*:?\s*(\d{1,2}[\/.\-]\d{2,4}|\d{4}[\/.\-]\d{1,2}(?:[\/.\-]\d{1,2})?)/i;
 
-const MANUFACTURER_RE = /(laborat[óo]rios?|pharma|farma|lda\.?|s\.a\.|gmbh|ltd|inc\.|有限公司|制药|药业)/i;
+const MANUFACTURER_RE = /(laborat[óo]rios?|pharma|farma|lda\.?|s\.a\.|gmbh|ltd|inc\.)/i;
 
 /** Linhas que aparecem nas caixas mas não são nomes de medicamentos. */
 const NOISE_RE = /^(lote|lot|val|exp|via oral|uso oral|medicamento|n\.?º|nr|reg|aim|cnpem|chnm|ler o folheto|manter fora)/i;
@@ -55,20 +58,13 @@ function isFormLine(l: string): boolean {
 
 /** Isola o nome da empresa numa linha que também pode ter lote/validade. */
 function companyName(line: string): string {
-  const latin = line.match(/(\p{Lu}[\p{L}.&'-]*(?:\s+[\p{L}.&'-]+){0,4}?,?\s+(?:Lda\.?|S\.A\.?|GmbH|Ltd\.?|Inc\.?))/u);
-  if (latin) return latin[1].trim();
-  const zh = line.match(/[\p{Script=Han}]{2,}(?:有限公司|制药|药业)/u);
-  return (zh?.[0] ?? line).trim().slice(0, 60);
+  const company = line.match(/(\p{Lu}[\p{L}.&'-]*(?:\s+[\p{L}.&'-]+){0,4}?,?\s+(?:Lda\.?|S\.A\.?|GmbH|Ltd\.?|Inc\.?))/u);
+  return (company?.[1] ?? line).trim().slice(0, 60);
 }
 
 /** Remove pontuação solta que o OCR junta às palavras (ex.: "Paracetamol!"). */
 function trimNoise(s: string): string {
   return s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}.)]+$/gu, "").trim();
-}
-
-function titleCase(s: string): string {
-  if (s !== s.toUpperCase()) return s;
-  return s.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_m, a: string, b: string) => a + b.toUpperCase());
 }
 
 export function parseBoxText(raw: string): ParsedBox {
@@ -91,6 +87,8 @@ export function parseBoxText(raw: string): ParsedBox {
   const e = text.match(EXPIRY_RE);
   if (e) out.expiry = e[1];
 
+  out.ean = eanFromText(text);
+
   const manu = lines.find((l) => MANUFACTURER_RE.test(l));
   if (manu) out.manufacturer = companyName(manu);
 
@@ -104,10 +102,20 @@ export function parseBoxText(raw: string): ParsedBox {
   const usable = (l: string) =>
     l.length >= 3 && l.length <= 40 && letterRatio(l) > 0.7 && !NOISE_RE.test(l) && !MANUFACTURER_RE.test(l) && !isFormLine(l);
 
+  // Marca em destaque (maiúsculas) por cima da linha "Substância 400 mg": a marca
+  // é o nome e o texto antes da dosagem é a substância ativa (ex.: BRUFEN / Ibuprofeno 400 mg).
+  if (strengthIdx > 0) {
+    const brand = lines.slice(0, strengthIdx).find((l) => usable(l) && l === comparable(l) && /\p{Lu}/u.test(l));
+    if (brand && out.name && comparable(brand) !== comparable(out.name)) {
+      out.activeSubstance = out.name;
+      out.name = brand;
+    }
+  }
+
   if (!out.name) {
     const candidates = lines.filter(usable);
     // Preferir linhas em maiúsculas (os nomes costumam estar em destaque).
-    out.name = candidates.find((l) => l === l.toUpperCase() && /[A-Z]/.test(l)) ?? candidates[0];
+    out.name = candidates.find((l) => l === comparable(l) && /\p{Lu}/u.test(l)) ?? candidates[0];
   }
 
   // Substância ativa: linha junto à dosagem, diferente do nome. Sem dosagem,
@@ -116,14 +124,15 @@ export function parseBoxText(raw: string): ParsedBox {
     const near = [lines[strengthIdx + 1], lines[strengthIdx - 1]].find(
       (l) => l !== undefined && l !== out.name && usable(l) && !STRENGTH_RE.test(l),
     );
-    if (near) out.activeSubstance = near;
+    if (near && !out.activeSubstance) out.activeSubstance = near;
   } else if (out.name) {
     const after = lines.slice(lines.indexOf(out.name) + 1, lines.indexOf(out.name) + 4);
     out.activeSubstance = after.find((l) => usable(l) && /^[\p{L}-]+(?: [\p{L}-]+){0,2}$/u.test(l) && !PACK_RE.test(l));
   }
 
-  if (out.name) out.name = titleCase(trimNoise(out.name)) || undefined;
-  if (out.activeSubstance) out.activeSubstance = titleCase(trimNoise(out.activeSubstance)) || undefined;
+  // Mantém maiúsculas/minúsculas e acentos como estão na caixa.
+  if (out.name) out.name = trimNoise(out.name) || undefined;
+  if (out.activeSubstance) out.activeSubstance = trimNoise(out.activeSubstance) || undefined;
   return out;
 }
 
@@ -139,6 +148,7 @@ export function parseOcr(cleanText: string, rawText: string): ParsedBox {
     ...fromClean,
     strength: fromClean.strength ?? fromRaw.strength,
     expiry: fromClean.expiry ?? fromRaw.expiry,
+    ean: fromClean.ean ?? fromRaw.ean,
     packCount: fromClean.strength || !fromRaw.strength ? fromClean.packCount : fromRaw.packCount,
   };
 }

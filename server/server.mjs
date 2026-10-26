@@ -1,9 +1,11 @@
-// Servidor do Planeador de Medicação para o NAS (só módulos do Node, sem dependências).
+// Servidor do Planeador de Medicação para o NAS (módulos do Node + web-push).
 //
 // - Serve a app estática (pasta out/) com as mesmas regras que o nginx usava.
-// - API de sincronização /api/* para guardar os dados num volume do NAS.
+// - API de sincronização /api/data para guardar os dados num volume do NAS.
 //   Sem contas: um único "código de sincronização" (variável SYNC_CODE).
-//   Sem SYNC_CODE a sincronização fica desligada e a app funciona só no telemóvel.
+//   Sem SYNC_CODE a sincronização e os lembretes ficam desligados e a app
+//   funciona só no telemóvel.
+// - Lembretes Web Push /api/push/* e /api/cron/tick (ver push.mjs).
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
@@ -11,6 +13,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/p
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { PushService } from "./push.mjs";
 
 const PORT = Number(process.env.PORT ?? 1380);
 const ROOT = resolve(process.env.STATIC_DIR ?? "out");
@@ -20,6 +23,8 @@ const HISTORY_KEEP = Number(process.env.HISTORY_KEEP ?? 50);
 const MAX_BODY = 5 * 1024 * 1024;
 const DATA_FILE = join(DATA_DIR, "medicine-planner.json");
 const HISTORY_DIR = join(DATA_DIR, "history");
+const CRON_SECRET = process.env.CRON_SECRET ?? "";
+const INTERNAL_CRON = process.env.INTERNAL_CRON !== "off";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -126,22 +131,84 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+// ---------- lembretes ----------
+
+export const push = SYNC_CODE
+  ? new PushService({
+      dataDir: DATA_DIR,
+      // O Apple exige um contacto (mailto: ou https:) nas chaves VAPID.
+      subject: process.env.VAPID_SUBJECT || "https://github.com/mwmiao/Medicine-Planner",
+      publicKey: process.env.VAPID_PUBLIC_KEY,
+      privateKey: process.env.VAPID_PRIVATE_KEY,
+      readDoseLogs: async () => {
+        const store = await readStore();
+        const logs = store.data && typeof store.data === "object" ? store.data.doseLogs : null;
+        return Array.isArray(logs) ? logs.filter((l) => l && typeof l.id === "string") : [];
+      },
+    })
+  : null;
+
+async function handlePush(req, res, url) {
+  if (!push) return sendJson(res, 503, { error: "sync_disabled" });
+  if (url.pathname === "/api/push/key" && req.method === "GET") return sendJson(res, 200, { publicKey: await push.publicKey() });
+  if (url.pathname === "/api/push/status" && req.method === "GET") return sendJson(res, 200, await push.status());
+  const routes = {
+    "POST /api/push/subscription": (b) => push.subscribe(b),
+    "DELETE /api/push/subscription": (b) => push.unsubscribe(b),
+    "PUT /api/push/jobs": (b) => push.setJobs(b),
+    "POST /api/push/test": (b) => push.sendTest(b),
+  };
+  const handler = routes[`${req.method} ${url.pathname}`];
+  if (!handler) return sendJson(res, 404, { error: "not_found" });
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    return sendJson(res, e.status ?? 400, { error: e.status === 413 ? "too_large" : "bad_json" });
+  }
+  const result = await handler(body);
+  return sendJson(res, result.status, result.body);
+}
+
 // ---------- API ----------
+
+/** Autenticação comum: código de sincronização, com bloqueio após muitas tentativas erradas. */
+function authorize(req, res) {
+  const ip = req.socket.remoteAddress ?? "?";
+  if (blocked(ip)) {
+    sendJson(res, 429, { error: "too_many_attempts" });
+    return false;
+  }
+  if (!checkCode(req)) {
+    recordFailure(ip);
+    sendJson(res, 401, { error: "bad_code" });
+    return false;
+  }
+  failures.delete(ip);
+  return true;
+}
 
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/health") {
-    return sendJson(res, 200, { ok: true, sync: Boolean(SYNC_CODE) });
+    return sendJson(res, 200, { ok: true, sync: Boolean(SYNC_CODE), push: Boolean(push) });
+  }
+  if (url.pathname === "/api/cron/tick") {
+    // Para um cron externo (opcional): o servidor já faz isto sozinho a cada minuto.
+    if (!push) return sendJson(res, 503, { error: "sync_disabled" });
+    const header = req.headers.authorization ?? "";
+    const okSecret = CRON_SECRET && header === `Bearer ${CRON_SECRET}`;
+    if (!okSecret && !authorize(req, res)) return;
+    if (req.method !== "POST") return sendJson(res, 405, { error: "method_not_allowed" });
+    return sendJson(res, 200, await push.tick());
+  }
+  if (url.pathname.startsWith("/api/push/")) {
+    if (!SYNC_CODE) return sendJson(res, 503, { error: "sync_disabled" });
+    if (url.pathname !== "/api/push/key" && !authorize(req, res)) return;
+    return handlePush(req, res, url);
   }
   if (url.pathname !== "/api/data") return sendJson(res, 404, { error: "not_found" });
   if (!SYNC_CODE) return sendJson(res, 503, { error: "sync_disabled" });
-
-  const ip = req.socket.remoteAddress ?? "?";
-  if (blocked(ip)) return sendJson(res, 429, { error: "too_many_attempts" });
-  if (!checkCode(req)) {
-    recordFailure(ip);
-    return sendJson(res, 401, { error: "bad_code" });
-  }
-  failures.delete(ip);
+  if (!authorize(req, res)) return;
 
   if (req.method === "GET") return sendJson(res, 200, await readStore());
 
@@ -257,4 +324,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   createApp().listen(PORT, () => {
     console.log(`Medicine Planner on :${PORT} — static: ${ROOT} — data: ${DATA_DIR} — sync ${SYNC_CODE ? "ON" : "OFF (set SYNC_CODE)"}`);
   });
+  if (push && INTERNAL_CRON) {
+    // "Cron" interno: corre no início de cada minuto.
+    const run = () => push.tick().catch((e) => console.error("tick failed", e));
+    setTimeout(() => {
+      void run();
+      setInterval(run, 60_000);
+    }, 60_000 - (Date.now() % 60_000));
+  }
 }

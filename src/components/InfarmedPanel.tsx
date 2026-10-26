@@ -16,6 +16,8 @@ function MatchCard({ match, onSelect }: { match: InfarmedMatch; onSelect: () => 
     [m.infarmed.form, match.pharmaceuticalForm],
     [m.infarmed.strength, match.strength],
     [m.infarmed.status, match.authorisationStatus],
+    [m.infarmed.holder, match.holder],
+    [m.scan.fields.ean, match.ean],
   ];
   return (
     <li className="rounded-2xl border-2 border-line bg-white p-4">
@@ -34,7 +36,9 @@ function MatchCard({ match, onSelect }: { match: InfarmedMatch; onSelect: () => 
         {match.origin === "user-copied" ? m.infarmed.copiedByUser : m.infarmed.fromProvider}
         {match.retrievedAt ? ` · ${m.infarmed.retrievedOn(formatIsoDate(match.retrievedAt, locale))}` : ""}
       </p>
-      <div className="mt-3">
+      <div className="mt-3 flex flex-col gap-2">
+        {match.recordUrl ? <ExternalLink href={match.recordUrl}>{m.infarmed.recordLink}</ExternalLink> : null}
+        {match.leafletUrl ? <ExternalLink href={match.leafletUrl}>{m.infarmed.leafletLink}</ExternalLink> : null}
         <Button block onClick={onSelect}>
           {m.infarmed.select}
         </Button>
@@ -90,13 +94,13 @@ export function InfarmedPanel({
     if (!q.trim()) return;
     setBusy(true);
     try {
-      setResult(await searchInfarmed(q));
+      setResult(await searchInfarmed(q, { ean: input.ean }));
     } catch {
       setResult({ query: q, cached: [], remote: [], remoteStatus: "error" });
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [input.ean]);
 
   useEffect(() => {
     if (autoSearch && initialQuery && !ran.current) {
@@ -136,6 +140,7 @@ export function InfarmedPanel({
       strength: opt(link.strength),
       authorisationStatus: opt(link.authorisationStatus),
       holder: opt(link.holder),
+      ean: input.ean,
       recordUrl: parsed.url,
       leafletUrl: opt(link.leafletUrl),
       spcUrl: opt(link.spcUrl),

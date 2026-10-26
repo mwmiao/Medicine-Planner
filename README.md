@@ -4,7 +4,8 @@ Aplicação web (PWA) simples e bilingue — **português europeu** e **chinês 
 
 - Mostra as tomas de hoje, com botões grandes: **"Já tomei"** e **"Adiar 15 min"**.
 - Guarda tudo no telemóvel (IndexedDB, via Dexie.js) e, opcionalmente, **no NAS da família** (sincronização sem contas, com um código). Não há login.
-- Lê o texto da caixa com a câmara (OCR com Tesseract.js, no próprio telemóvel).
+- Lê a caixa com a câmara: texto em português (OCR com Tesseract.js) e código de barras EAN-13 / DataMatrix, no próprio telemóvel.
+- Envia **lembretes Web Push** a partir do NAS, mesmo com a app fechada (iPhone com iOS 16.4+, app no ecrã principal).
 - Liga cada medicamento ao registo oficial do **INFARMED / INFOMED**.
 - Funciona offline depois da primeira utilização.
 
@@ -60,8 +61,10 @@ services:
     ports:
       - "1380:1380"
     environment:
-      # Código longo e aleatório (ex.: `openssl rand -hex 16`). Sem ele, a sincronização fica desligada.
+      # Código longo e aleatório (ex.: `openssl rand -hex 16`). Sem ele, a sincronização e os lembretes ficam desligados.
       SYNC_CODE: "troque-por-um-codigo-longo-e-aleatorio"
+      # Opcional: contacto exigido pelo Apple nas chaves VAPID (mailto: ou https:).
+      # VAPID_SUBJECT: "mailto:o-seu-email@exemplo.pt"
     volumes:
       - medicine-planner-data:/data
     restart: unless-stopped
@@ -76,7 +79,7 @@ volumes:
 
 ### Guardar os dados no NAS (sincronização)
 
-No iPhone, o Safari e a app adicionada ao ecrã principal têm **armazenamento separado**: o que se escreve num não aparece no outro. O mesmo acontece com endereços diferentes (IP, nome, http/https). Para os dados nunca se perderem, a imagem Docker inclui um pequeno servidor (`server/server.mjs`, só Node, sem dependências) que:
+No iPhone, o Safari e a app adicionada ao ecrã principal têm **armazenamento separado**: o que se escreve num não aparece no outro. O mesmo acontece com endereços diferentes (IP, nome, http/https). Para os dados nunca se perderem, a imagem Docker inclui um pequeno servidor (`server/server.mjs`, Node + a biblioteca `web-push`) que:
 
 - serve a app (como o nginx fazia: cache, 404, redirecionamentos relativos);
 - guarda os dados em `/data/medicine-planner.json` (volume), com escrita atómica;
@@ -102,15 +105,33 @@ Se usar uma pasta do NAS em vez de um volume (`./data:/data`), dê-lhe permissõ
 
 A partir daí a app abre em ecrã inteiro, sem barra do Safari, e funciona sem internet. As mesmas instruções estão em **Definições** dentro da app, nas duas línguas.
 
-## 4. Lembretes no iOS — limitações
+## 4. Lembretes (Web Push a partir do NAS)
 
-O iOS limita muito o que uma web app pode fazer em segundo plano:
+Os lembretes chegam **mesmo com a app fechada e o ecrã bloqueado**. Como funciona:
 
-- **Avisos dentro da app (implementado):** enquanto a app está aberta, quando chega a hora de uma toma aparece uma faixa no topo, ouve-se um som curto e, se o utilizador permitiu, surge uma notificação do sistema. **Com a app fechada ou o ecrã bloqueado, estes avisos não acontecem.**
-- **Notificações Web Push (não ativadas):** o Safari no iOS 16.4+ aceita Web Push apenas em apps adicionadas ao ecrã principal, e exige um **servidor** com chaves VAPID para enviar as mensagens à hora certa. Isso contraria o objetivo de não ter servidor nem conta, e a entrega no iOS não é garantida. Fica um esboço limpo em `src/lib/push.ts` e um comentário em `public/sw.js`.
-- **Solução recomendada — alarmes / Atalhos do iPhone:**
-  - App **Relógio → Alarmes → +**: um alarme por cada hora de toma (ex.: 08:00 "Medicamentos").
-  - Ou app **Atalhos → Automação → Nova automação → Hora do dia**: escolha a hora, "Diariamente", "Executar imediatamente", e adicione a ação **"Abrir app"** (ou "Abrir URL" com o endereço da app).
+1. A app tem de estar **adicionada ao ecrã principal** (iOS 16.4 ou mais recente) e **ligada ao NAS** (secção acima).
+2. Em **Definições → Lembretes no telemóvel** aparece o botão grande **"Ativar lembretes"** — **só** quando a app está aberta a partir do ícone do ecrã principal. A permissão de notificações é pedida apenas quando se toca nesse botão (regra do iOS).
+3. A app cria uma subscrição Web Push com as chaves **VAPID** do NAS e envia ao NAS: a subscrição, o horário dos medicamentos, o fuso horário, o idioma, e a lista de lembretes dos próximos **30 dias** já com o texto em pt-PT ou zh-CN (nome do medicamento, dose e hora).
+4. No NAS, um "cron" corre **a cada minuto** (dentro do servidor; também existe `POST /api/cron/tick` para um cron externo) e envia os lembretes que chegam à hora. Tocar no lembrete abre a app no ecrã **Hoje**.
+5. Se a toma já foi marcada como tomada (dados sincronizados), o lembrete não é enviado. Ao adiar 15 min, o lembrete passa para a nova hora.
+6. Subscrições expiradas ou recusadas pelo serviço de push são removidas automaticamente. Falhas temporárias são repetidas no minuto seguinte.
+7. **"Enviar lembrete de teste"** em Definições confirma que tudo funciona.
+
+A lista é renovada sempre que a app abre ou algo muda; abra a app **pelo menos uma vez por mês**.
+
+Variáveis do contentor:
+
+| Variável | Para quê |
+| --- | --- |
+| `SYNC_CODE` | Obrigatória para sincronização e lembretes |
+| `VAPID_SUBJECT` | Contacto `mailto:`/`https:` enviado ao serviço de push (por omissão, o repositório no GitHub) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Opcional; sem elas, são geradas uma vez e guardadas em `/data/push.json` |
+| `CRON_SECRET` | Opcional; permite chamar `POST /api/cron/tick` de fora com `Authorization: Bearer …` |
+| `INTERNAL_CRON=off` | Desliga o "cron" interno (se usar um externo) |
+
+**Rede:** o NAS precisa de acesso à internet **de saída** (para o serviço de push da Apple). O telemóvel precisa de chegar ao NAS por **HTTPS** para ativar os lembretes e sincronizar; o envio dos lembretes não precisa que o telemóvel esteja em casa.
+
+**Alternativa sem NAS:** enquanto a app está aberta, mostra uma faixa e faz um som à hora da toma. Para iPhones antigos, use os alarmes do iPhone (**Relógio → Alarmes**) ou **Atalhos → Automação → Hora do dia → Abrir app** — as instruções estão em Definições.
 
 Não são usadas funcionalidades que exijam certificado de programador iOS, App Store ou notificações nativas.
 
@@ -132,14 +153,14 @@ Na investigação feita (outubro de 2026):
 
 ### O que a app faz
 
-1. **"Pesquisar no INFARMED"** (no formulário, ou automaticamente depois de fotografar a caixa, com o nome lido):
-   - procura primeiro nos registos já guardados **neste telemóvel** (funciona offline);
-   - mostra os resultados com nome comercial, substância ativa, forma farmacêutica, dosagem e estado da autorização, com um botão **"Selecionar"**;
+1. **"Pesquisar no INFARMED"** (no formulário, ou automaticamente depois de fotografar a caixa, com o nome lido ou o código de barras):
+   - procura primeiro nos registos já guardados **neste telemóvel** — pelo **código de barras (EAN)** e depois pelo nome/substância (funciona offline);
+   - mostra os resultados com nome comercial, substância ativa, forma farmacêutica, dosagem, estado da autorização, titular de AIM, ligação ao registo oficial e ao Folheto Informativo, com um botão **"Selecionar"**;
    - explica de forma simpática, nas duas línguas, que não há pesquisa automática.
 2. **"Copiar nome e abrir INFARMED"** copia o nome e abre o INFOMED oficial. **"Ver no INFARMED"** abre o site.
 3. **"Ligar ao registo oficial"**: o utilizador cola o endereço da ficha do medicamento (com `med_guid`) e copia os dados principais, bem como, se quiser, os endereços do **Folheto Informativo** e do **RCM**. A app só aceita endereços `https://…infarmed.pt`.
 4. Ao selecionar, os campos do formulário são **pré-preenchidos, mas tudo continua editável**. O registo é guardado em cache no IndexedDB **com a data de obtenção**, e fica disponível offline e em pesquisas futuras.
-5. Em todo o lado é mostrada a **fonte** e a **data**. Dados escritos pelo utilizador aparecem como "Copiado da página oficial do INFARMED" ou "Escrito à mão", **nunca** como informação oficial gerada automaticamente.
+5. Em todo o lado é mostrada a **fonte** e a **data**. Dados escritos pelo utilizador aparecem como "Introduzido manualmente (copiado do INFARMED)" ou "Escrito à mão", **nunca** como informação oficial gerada automaticamente.
 
 ### Quando não há resultado
 
@@ -160,12 +181,17 @@ Cada medicamento tem uma secção **"Ver informação"** (recolhível), com este
 
 Regras de segurança fixas: se não houver orientação para uma toma esquecida aparece *"Se se esquecer de uma toma, siga as instruções da embalagem ou pergunte ao seu médico ou farmacêutico. Não tome uma dose a dobrar."*, e é sempre mostrado o aviso de sinais urgentes (dificuldade em respirar, inchaço da cara ou garganta → 112). A app **não gera** posologias, interações, contraindicações nem efeitos secundários. O texto é mostrado tal como foi escrito (a app não traduz automaticamente informação médica).
 
-## 7. Fotografar a caixa (OCR)
+## 7. Fotografar a caixa (OCR e código de barras)
 
-- Usa a câmara traseira com `getUserMedia`. Se não for possível (permissão negada, HTTP, Safari antigo), usa `<input type="file" accept="image/*" capture="environment">`.
-- O OCR corre no navegador, num Web Worker do Tesseract.js, com `por`, `chi_sim` ou ambos.
-- Da **primeira vez** é preciso internet para descarregar o motor e os idiomas (de cdn.jsdelivr.net). Depois ficam em cache.
-- Tenta identificar: nome, substância ativa, dosagem, forma farmacêutica, unidades na caixa, validade e fabricante. **São apenas sugestões**: o utilizador confirma e corrige tudo antes de guardar.
+A app ajuda a **identificar** o medicamento; nunca sabe a receita do médico. A dose e o horário são sempre os que o utilizador escreve ou confirma.
+
+- Usa a câmara traseira com `getUserMedia` (com retângulo-guia), a câmara nativa do iPhone, ou uma fotografia da galeria (`<input type="file" accept="image/*" capture="environment">`).
+- **OCR só em português / alfabeto latino** (`por`), num Web Worker do Tesseract.js. Não há OCR de chinês: letras de outros alfabetos são tratadas como ruído. Os acentos (ã, ç, é, ê, í, ó, ú) mantêm-se; as maiúsculas são usadas só para comparar; os nomes nunca são traduzidos.
+- A fotografia é preparada (tamanho, contraste) e lida também rodada (90°/180°/270°), ficando a melhor leitura.
+- **Código de barras** na mesma fotografia (biblioteca gratuita `@zxing`): prioridade ao **EAN-13**; também lê o **DataMatrix GS1** das caixas europeias (GTIN, validade, lote). O número é mostrado e verificado (dígito de controlo). Se já existir um medicamento guardado com o mesmo EAN, a app avisa. Um EAN **nunca** é usado sem confirmação do utilizador.
+- Sugere: nome, substância ativa (DCI), dosagem, forma farmacêutica, unidades na caixa, validade, fabricante e EAN — tudo editável — e pesquisa logo no INFARMED.
+- O texto lido completo fica numa secção recolhível **"Texto lido (em bruto)"** para conferir.
+- Da **primeira vez** é preciso internet para descarregar o motor e o idioma (de cdn.jsdelivr.net). Depois ficam em cache.
 - **A fotografia não é guardada.** Fica só na memória durante a leitura, pode ser apagada com "Apagar fotografia" e é libertada ao usar os dados.
 
 ## 8. Cópia de segurança
@@ -186,10 +212,14 @@ src/
     medications.ts        criar, editar, validar, apagar
     backup.ts             exportar / importar JSON
     infarmed/             URLs oficiais, fornecedor (interface) e pesquisa + cache
-    ocr/                  Tesseract.js e heurísticas de leitura da caixa
+    ocr/                  Tesseract.js (português) e heurísticas de leitura da caixa
+    barcode/              EAN-13 / DataMatrix GS1 (@zxing) e validação
+    sync/                 sincronização com o NAS (junção segura das cópias)
+    reminders/, push.ts   lista de lembretes e subscrição Web Push
     i18n/                 textos pt-PT e zh-CN (o chinês é verificado pelo TypeScript)
+server/                   servidor do NAS: app, dados (/data) e lembretes Web Push
 public/
-  manifest.webmanifest, sw.js, icons/
+  manifest.webmanifest, sw.js (offline + notificações push), icons/
 scripts/                  geração de ícones e ajuste pós-build da exportação estática
 tests/                    testes Vitest
 ```

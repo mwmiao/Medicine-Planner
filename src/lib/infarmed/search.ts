@@ -30,6 +30,7 @@ export function toRecord(match: InfarmedMatch, now: Date): InfarmedRecord {
     strength: match.strength,
     authorisationStatus: match.authorisationStatus,
     holder: match.holder,
+    ean: match.ean,
     recordUrl: match.recordUrl,
     leafletUrl: match.leafletUrl,
     spcUrl: match.spcUrl,
@@ -50,6 +51,7 @@ export function fromRecord(r: InfarmedRecord): InfarmedMatch {
     strength: r.strength,
     authorisationStatus: r.authorisationStatus,
     holder: r.holder,
+    ean: r.ean,
     recordUrl: r.recordUrl,
     leafletUrl: r.leafletUrl,
     spcUrl: r.spcUrl,
@@ -65,25 +67,29 @@ export async function cacheRecord(match: InfarmedMatch, now: Date = new Date(), 
   return record;
 }
 
-/** Pesquisa na cache local por nome comercial ou substância ativa (funciona offline). */
-export async function searchCache(query: string, database: PlannerDB = db): Promise<InfarmedMatch[]> {
-  const terms = normalize(query).split(" ").filter((t) => t.length >= 3);
-  if (!terms.length) return [];
+/** Pesquisa na cache local por EAN, nome comercial ou substância ativa (funciona offline). */
+export async function searchCache(query: string, database: PlannerDB = db, ean?: string): Promise<InfarmedMatch[]> {
   const all = await database.infarmedCache.toArray();
-  return all
+  const byEan = ean ? all.filter((r) => r.ean === ean) : [];
+  const terms = normalize(query).split(" ").filter((t) => t.length >= 3);
+  if (!terms.length) return byEan.map(fromRecord);
+  const eanIds = new Set(byEan.map((r) => r.id));
+  const byText = all
+    .filter((r) => !eanIds.has(r.id))
     .map((r) => ({ r, score: terms.filter((t) => r.nameLower.includes(t) || r.substanceLower.includes(t)).length }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || a.r.name.localeCompare(b.r.name))
     .map((x) => fromRecord(x.r));
+  return [...byEan.map(fromRecord), ...byText];
 }
 
 export async function searchInfarmed(
   query: string,
-  options: { provider?: InfarmedProvider; database?: PlannerDB; signal?: AbortSignal; online?: boolean } = {},
+  options: { provider?: InfarmedProvider; database?: PlannerDB; signal?: AbortSignal; online?: boolean; ean?: string } = {},
 ): Promise<InfarmedSearchResult> {
   const { provider = defaultProvider, database = db, signal } = options;
   const online = options.online ?? (typeof navigator === "undefined" ? true : navigator.onLine);
-  const cached = await searchCache(query, database);
+  const cached = await searchCache(query, database, options.ean);
   let remote: InfarmedMatch[] = [];
   let remoteStatus: RemoteStatus = "ok";
   if (!online) {
@@ -116,6 +122,7 @@ export async function selectMatch(
     activeSubstance: match.activeSubstance ?? input.activeSubstance,
     dosage: match.strength ?? input.dosage,
     pharmaceuticalForm: match.pharmaceuticalForm ?? input.pharmaceuticalForm,
+    ean: match.ean ?? input.ean,
     infarmed: {
       matched: true,
       recordId: record.id,

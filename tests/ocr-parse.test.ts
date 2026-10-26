@@ -33,12 +33,20 @@ describe("leitura do texto da caixa", () => {
     expect(parseBoxText(clean).activeSubstance).toBe("Paracetamol");
   });
 
-  it("lê caixas em chinês", () => {
-    const p = parseBoxText("阿莫西林胶囊\n0.25g\n24粒\n有效期至 2027-06\n某某制药有限公司");
-    expect(p.strength).toBe("0.25 g");
-    expect(p.form).toBe("胶囊");
-    expect(p.packCount).toBe("24");
-    expect(p.expiry).toBe("2027-06");
+  it("mantém o nome como está escrito na caixa e lê o EAN por baixo das barras", () => {
+    const p = parseBoxText(["BRUFEN", "Ibuprofeno 400 mg", "Comprimidos revestidos por película", "20 comprimidos", "5 601234 567892"].join("\n"));
+    expect(p.name).toBe("BRUFEN");
+    expect(p.activeSubstance).toBe("Ibuprofeno");
+    expect(p.form).toBe("Comprimido revestido");
+    expect(p.ean).toBe("5601234567892");
+    // Números com dígito de controlo errado não são aceites como EAN.
+    expect(parseBoxText("5601234567890").ean).toBeUndefined();
+  });
+
+  it("preserva acentos portugueses", () => {
+    const p = parseBoxText(["Ácido Acetilsalicílico 100 mg", "Solução oral"].join("\n"));
+    expect(p.name).toBe("Ácido Acetilsalicílico");
+    expect(p.form).toBe("Solução oral");
   });
 
   it("deteta leituras pouco claras", () => {

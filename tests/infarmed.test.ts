@@ -64,6 +64,16 @@ describe("pesquisa INFARMED, seleção e cache", () => {
     expect(again.remote).toEqual([]);
   });
 
+  it("encontra na cache pelo código de barras (EAN) antes de pesquisar por texto", async () => {
+    const db = testDb();
+    await selectMatch({ ...match, ean: "5601234567892", origin: "user-copied" }, input(), new Date(), db);
+    const res = await searchInfarmed("", { database: db, online: false, ean: "5601234567892" });
+    expect(res.cached.map((m) => m.name)).toEqual(["Ben-u-ron"]);
+    expect((await searchCache("xyz", db, "5601234567892")).map((m) => m.ean)).toEqual(["5601234567892"]);
+    const filled = await selectMatch(res.cached[0], input({ name: "" }), new Date(), db);
+    expect(filled.ean).toBe("5601234567892");
+  });
+
   it("aceita só URLs oficiais do INFOMED", () => {
     expect(parseInfomedUrl("https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml?med_guid=fe0aac206d5b11e2bfa681cd2679c334")).toEqual({
       medGuid: "fe0aac206d5b11e2bfa681cd2679c334",

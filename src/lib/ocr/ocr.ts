@@ -1,13 +1,16 @@
 // OCR no próprio navegador com Tesseract.js. O reconhecimento corre num Web
 // Worker criado pela biblioteca, por isso a interface não bloqueia. A imagem
-// nunca sai do telemóvel. Os ficheiros de idioma (por, chi_sim) são
-// descarregados na primeira utilização e ficam em cache pelo service worker.
+// nunca sai do telemóvel. Só português / alfabeto latino ("por"): as caixas à
+// venda em Portugal estão em português, e misturar alfabetos piora a leitura.
+// O ficheiro do idioma é descarregado na primeira utilização e fica em cache
+// pelo service worker.
 
 import type { Page, Worker } from "tesseract.js";
-import { cleanLines, joinCjk, scoreLines, type OcrLine } from "./clean";
+import { cleanLines, scoreLines, type OcrLine } from "./clean";
 import { prepareImage, rotateCanvas } from "./preprocess";
 
-export type OcrLanguage = "por" | "chi_sim" | "por+chi_sim";
+/** Único idioma do OCR: português (alfabeto latino). */
+export const OCR_LANGUAGE = "por";
 
 export type OcrResult = {
   /** Texto limpo (só palavras com boa confiança), usado para encontrar os campos. */
@@ -57,18 +60,17 @@ async function recognizeOnce(worker: Worker, canvas: HTMLCanvasElement) {
 }
 
 export async function recognizeImage(
-  image: Blob,
-  language: OcrLanguage,
+  image: Blob | HTMLCanvasElement,
   onProgress?: (fraction: number) => void,
   options: OcrOptions = {},
 ): Promise<OcrResult> {
   const { attempts = DEFAULT_ATTEMPTS } = options;
-  const canvas = await prepareImage(image);
+  const canvas = image instanceof Blob ? await prepareImage(image) : image;
   const { createWorker, PSM } = await import("tesseract.js");
 
   let step = 0;
   const report = (p: number) => onProgress?.(Math.min(0.99, (step + p) / attempts.length));
-  const worker = await createWorker(language.split("+"), 1, {
+  const worker = await createWorker(OCR_LANGUAGE, 1, {
     logger: (m) => {
       if (m.status === "recognizing text") report(m.progress);
     },
@@ -90,7 +92,7 @@ export async function recognizeImage(
     const result = best!;
     return {
       text: cleanLines(result.lines).join("\n"),
-      rawText: joinCjk(result.raw).trim(),
+      rawText: result.raw.trim(),
       confidence: result.meanConfidence,
       goodChars: result.goodChars,
       rotation: result.rotation,

@@ -2,24 +2,26 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useMessages } from "@/lib/i18n";
-import { recognizeImage, type OcrLanguage } from "@/lib/ocr/ocr";
+import { decodeBarcode } from "@/lib/barcode/decode";
+import type { BarcodeInfo } from "@/lib/barcode/gs1";
+import { recognizeImage } from "@/lib/ocr/ocr";
 import { isUnclear, parseOcr, type ParsedBox } from "@/lib/ocr/parse";
-import { GUIDE, guideCrop } from "@/lib/ocr/preprocess";
+import { GUIDE, guideCrop, prepareImage } from "@/lib/ocr/preprocess";
 import type { OcrExtract } from "@/lib/types";
 import { Button, Card, Field, Notice, TextArea, TextInput } from "./ui";
 
 type Phase = "start" | "camera" | "preview" | "reading" | "review";
 
-const FIELD_KEYS = ["name", "activeSubstance", "strength", "form", "packCount", "expiry", "manufacturer"] as const;
+const FIELD_KEYS = ["name", "activeSubstance", "strength", "form", "packCount", "expiry", "manufacturer", "ean"] as const;
 
 export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract) => void; onClose: () => void }) {
   const { m } = useMessages();
   const [phase, setPhase] = useState<Phase>("start");
-  const [lang, setLang] = useState<OcrLanguage>("por");
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [raw, setRaw] = useState("");
+  const [barcode, setBarcode] = useState<BarcodeInfo | null>(null);
   const [unclear, setUnclear] = useState(false);
   const [fields, setFields] = useState<ParsedBox>({});
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -48,10 +50,20 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     setProgress(0);
     setPhase("reading");
     try {
-      const res = await recognizeImage(blob, lang, setProgress);
-      setRaw(res.text);
-      setUnclear(isUnclear(res.text, res.confidence));
-      setFields(parseOcr(res.text, res.rawText));
+      const canvas = await prepareImage(blob);
+      // Código de barras primeiro (rápido); depois o texto, na mesma fotografia.
+      const code = await decodeBarcode(canvas).catch(() => null);
+      setBarcode(code);
+      const res = await recognizeImage(canvas, setProgress);
+      const parsed = parseOcr(res.text, res.rawText);
+      setRaw(res.rawText);
+      setUnclear(isUnclear(res.text, res.confidence) && !code?.ean);
+      setFields({
+        ...parsed,
+        // O código de barras é mais fiável do que os números lidos por OCR.
+        ean: code?.ean ?? parsed.ean,
+        expiry: parsed.expiry ?? code?.expiry,
+      });
       setPhase("review");
     } catch {
       setError(m.scan.ocrError);
@@ -129,6 +141,7 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
       packCount: clean(fields.packCount),
       expiry: clean(fields.expiry),
       manufacturer: clean(fields.manufacturer),
+      ean: clean(fields.ean),
       capturedAt: new Date().toISOString(),
     });
     clearPhoto();
@@ -163,28 +176,6 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
               ))}
             </ul>
           </div>
-          <fieldset>
-            <legend className="mb-2 text-lg font-semibold">{m.scan.textLanguage}</legend>
-            <div className="grid grid-cols-3 gap-2">
-              {(
-                [
-                  ["por", m.scan.langPor],
-                  ["chi_sim", m.scan.langZh],
-                  ["por+chi_sim", m.scan.langBoth],
-                ] as const
-              ).map(([v, label]) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={lang === v}
-                  onClick={() => setLang(v)}
-                  className={`min-h-14 rounded-xl border-2 px-2 text-lg font-semibold ${lang === v ? "border-primary bg-primary text-white" : "border-line bg-white"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
           <Button block className="min-h-16 text-xl" onClick={() => void openCamera()}>
             📷 {m.scan.openCamera}
           </Button>
@@ -259,10 +250,23 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
       {phase === "review" ? (
         <>
           {photo ? (
-            <Button variant="danger" block onClick={clearPhoto}>
-              🗑 {m.scan.deletePhoto}
-            </Button>
+            <>
+              <img src={photo.url} alt="" className="max-h-56 w-full rounded-2xl bg-gray-100 object-contain" />
+              <Button variant="danger" block onClick={clearPhoto}>
+                🗑 {m.scan.deletePhoto}
+              </Button>
+            </>
           ) : null}
+          {barcode?.ean ? (
+            <Notice tone="success">
+              <p className="font-bold">
+                ▥ {m.scan.barcodeFound}: <span className="font-mono tabular-nums">{barcode.ean}</span>
+              </p>
+              <p className="text-base">{m.scan.barcodeNote}</p>
+            </Notice>
+          ) : (
+            <Notice>{m.scan.noBarcode}</Notice>
+          )}
           {unclear ? (
             <Notice tone="warn">
               <p className="font-bold">{m.scan.unclear}</p>
@@ -275,13 +279,19 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
             <h3 className="text-xl font-bold">{m.scan.found}</h3>
             {FIELD_KEYS.map((k) => (
               <Field key={k} label={m.scan.fields[k]} htmlFor={`ocr-${k}`}>
-                <TextInput id={`ocr-${k}`} value={fields[k] ?? ""} onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))} />
+                <TextInput
+                  id={`ocr-${k}`}
+                  value={fields[k] ?? ""}
+                  inputMode={k === "ean" ? "numeric" : undefined}
+                  onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))}
+                />
               </Field>
             ))}
           </div>
           <details className="rounded-2xl bg-canvas p-3">
             <summary className="min-h-12 cursor-pointer py-2 text-lg font-semibold">{m.scan.rawText}</summary>
-            <TextArea value={raw} onChange={(e) => setRaw(e.target.value)} rows={6} />
+            <TextArea value={raw} readOnly rows={8} className="font-mono text-base" />
+            {barcode ? <p className="mt-2 break-all font-mono text-sm text-muted">{barcode.format}: {barcode.raw}</p> : null}
           </details>
           <Button block className="min-h-16 text-xl" onClick={confirm}>
             ✓ {m.scan.useData}

@@ -3,7 +3,7 @@
 // - Ficheiros estáticos (/_next/static, ícones) e dados do OCR: cache primeiro.
 // Os dados do utilizador vivem no IndexedDB e não passam por aqui.
 
-const VERSION = "v1";
+const VERSION = "v2";
 const APP_CACHE = `mp-app-${VERSION}`;
 const RUNTIME_CACHE = `mp-runtime-${VERSION}`;
 const PAGES = ["/", "/history/", "/medications/", "/medications/new/", "/medications/view/", "/medications/edit/", "/settings/"];
@@ -99,16 +99,42 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
+// Lembretes enviados pelo NAS (Web Push): nome do medicamento, dose e hora.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const url = typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/";
   event.waitUntil(
-    (async () => {
-      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      if (all.length) return all[0].focus();
-      return self.clients.openWindow("/");
-    })(),
+    self.registration.showNotification(data.title || "💊 Planeador", {
+      body: data.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: data.tag || undefined,
+      renotify: Boolean(data.tag),
+      data: { url },
+    }),
   );
 });
 
-// Web Push não está ativo (ver src/lib/push.ts). Se for ativado no futuro,
-// tratar aqui o evento "push" com self.registration.showNotification(...).
+// Tocar no lembrete abre a app diretamente no ecrã "Hoje".
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of all) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(url).catch(() => undefined);
+          return;
+        }
+      }
+      return self.clients.openWindow(url);
+    })(),
+  );
+});

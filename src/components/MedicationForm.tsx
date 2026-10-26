@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toDateKey } from "@/lib/dates";
+import { db } from "@/lib/db";
 import { BOX_COLORS, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
 import { bestSearchTerm } from "@/lib/ocr/parse";
-import { UNITS, type Frequency, type OcrExtract, type Unit } from "@/lib/types";
+import { UNITS, type Frequency, type Medication, type OcrExtract, type Unit } from "@/lib/types";
 import { BoxScanner } from "./BoxScanner";
 import { InfarmedPanel } from "./InfarmedPanel";
 import { Button, Card, ExternalLink, Field, Notice, Select, TextArea, TextInput } from "./ui";
@@ -44,6 +46,7 @@ export function MedicationForm({
   const [infarmedQuery, setInfarmedQuery] = useState({ q: "", auto: false, key: 0 });
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sameBox, setSameBox] = useState<Medication | null>(null);
 
   const set = <K extends keyof MedicationInput>(k: K, value: MedicationInput[K]) => setV((s) => ({ ...s, [k]: value }));
   const setFreq = (f: Frequency) => set("frequency", f);
@@ -55,8 +58,11 @@ export function MedicationForm({
     else setV((s) => ({ ...s, frequency: { type: "daily" }, times: PRESET_TIMES[p] }));
   };
 
-  const onOcr = (ocr: OcrExtract) => {
+  const onOcr = async (ocr: OcrExtract) => {
     setScanning(false);
+    // Procura primeiro nos medicamentos já guardados com o mesmo código de barras.
+    const existing = ocr.ean ? await db.medications.filter((med) => med.ean === ocr.ean).first() : undefined;
+    setSameBox(existing && existing.name !== v.name ? existing : null);
     setV((s) => ({
       ...s,
       ocr,
@@ -64,9 +70,10 @@ export function MedicationForm({
       activeSubstance: s.activeSubstance || ocr.activeSubstance,
       dosage: s.dosage || ocr.strength || "",
       pharmaceuticalForm: s.pharmaceuticalForm || ocr.form,
-      unit: s.unit === "tablet" && ocr.form && /c[áa]psula|胶囊/i.test(ocr.form) ? "capsule" : s.unit,
+      ean: ocr.ean ?? s.ean,
+      unit: s.unit === "tablet" && ocr.form && /c[áa]psula/i.test(ocr.form) ? "capsule" : s.unit,
     }));
-    const term = bestSearchTerm(ocr);
+    const term = bestSearchTerm(ocr) ?? ocr.ean;
     if (term) {
       setInfarmedQuery((q) => ({ q: term, auto: true, key: q.key + 1 }));
       setShowInfarmed(true);
@@ -127,7 +134,16 @@ export function MedicationForm({
         </Button>
       </div>
 
-      {scanning ? <BoxScanner onExtract={onOcr} onClose={() => setScanning(false)} /> : null}
+      {scanning ? <BoxScanner onExtract={(ocr) => void onOcr(ocr)} onClose={() => setScanning(false)} /> : null}
+
+      {sameBox ? (
+        <Notice tone="warn">
+          <p className="font-bold">{m.form.sameBox(sameBox.name)}</p>
+          <Link href={`/medications/view/?id=${encodeURIComponent(sameBox.id)}`} className="mt-1 inline-block text-lg font-semibold underline">
+            {m.form.openExisting}
+          </Link>
+        </Notice>
+      ) : null}
 
       {showInfarmed ? (
         <Card className="ring-2 ring-primary">
@@ -207,6 +223,16 @@ export function MedicationForm({
 
       <Field label={m.form.dosage} hint={m.common.optional} htmlFor="dosage">
         <TextInput id="dosage" value={v.dosage} onChange={(e) => set("dosage", e.target.value)} placeholder={m.form.dosagePlaceholder} autoComplete="off" />
+      </Field>
+
+      <Field label={m.scan.fields.ean} hint={m.common.optional} htmlFor="ean">
+        <TextInput
+          id="ean"
+          inputMode="numeric"
+          value={v.ean ?? ""}
+          onChange={(e) => set("ean", e.target.value.replace(/\D/g, "") || undefined)}
+          autoComplete="off"
+        />
       </Field>
 
       <fieldset className="flex flex-col gap-2">

@@ -5,6 +5,7 @@ import { useMessages } from "@/lib/i18n";
 import { startSync } from "@/lib/sync";
 import { BottomNav } from "./BottomNav";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ReminderJobsSync } from "./ReminderJobsSync";
 import { ReminderWatcher } from "./ReminderWatcher";
 import { ToastHost } from "./Toast";
 
@@ -44,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <main className="mx-auto max-w-xl px-safe pt-5 pb-36">{children}</main>
       <ReminderWatcher />
+      <ReminderJobsSync />
       <ToastHost />
       <BottomNav />
     </div>
