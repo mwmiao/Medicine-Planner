@@ -4,34 +4,52 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useMessages } from "@/lib/i18n";
 import { decodeBarcode } from "@/lib/barcode/decode";
 import type { BarcodeInfo } from "@/lib/barcode/gs1";
-import { recognizeImage } from "@/lib/ocr/ocr";
-import { isUnclear, parseOcr, type ParsedBox } from "@/lib/ocr/parse";
+import { OcrCancelled, recognizeImage } from "@/lib/ocr/ocr";
+import { isUnclear, parseOcr, uncertainFields, type ParsedBox } from "@/lib/ocr/parse";
 import { GUIDE, guideCrop, prepareImage } from "@/lib/ocr/preprocess";
 import type { OcrExtract } from "@/lib/types";
 import { Button, Card, Field, Notice, TextArea, TextInput } from "./ui";
 
-type Phase = "start" | "camera" | "preview" | "reading" | "review";
+type Phase = "start" | "starting" | "camera" | "preview" | "reading" | "failed" | "review";
+/** De onde veio a fotografia, para "Tirar outra" voltar ao mesmo sítio. */
+type Source = "native" | "gallery" | "live";
 
 const FIELD_KEYS = ["name", "activeSubstance", "strength", "form", "packCount", "expiry", "manufacturer", "ean"] as const;
+/** Depois deste tempo a ler, mostra que está a demorar (o botão "à mão" está sempre visível). */
+const SLOW_MS = 15000;
 
 export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract) => void; onClose: () => void }) {
   const { m } = useMessages();
   const [phase, setPhase] = useState<Phase>("start");
+  const [source, setSource] = useState<Source>("native");
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failMsg, setFailMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<"barcode" | "text">("barcode");
+  const [slow, setSlow] = useState(false);
   const [raw, setRaw] = useState("");
   const [barcode, setBarcode] = useState<BarcodeInfo | null>(null);
-  const [unclear, setUnclear] = useState(false);
   const [fields, setFields] = useState<ParsedBox>({});
+  const [unsure, setUnsure] = useState<Set<keyof ParsedBox>>(new Set());
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const phaseRef = useRef<Phase>("start");
+  const readRef = useRef<AbortController | null>(null);
   const cameraFileRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const hasLiveCamera = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+
+  phaseRef.current = phase;
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+  };
+
+  const cancelRead = () => {
+    readRef.current?.abort();
+    readRef.current = null;
   };
 
   const clearPhoto = () => {
@@ -41,71 +59,132 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     });
   };
 
-  // Ao sair, desligar a câmara e libertar a fotografia da memória.
-  useEffect(() => () => stopCamera(), []);
+  // Ao sair: desligar a câmara, parar a leitura e libertar a fotografia da memória.
+  useEffect(
+    () => () => {
+      stopCamera();
+      cancelRead();
+    },
+    [],
+  );
   useEffect(() => () => void (photo && URL.revokeObjectURL(photo.url)), [photo]);
 
+  // Ligar o vídeo só depois de ele estar no ecrã (necessário no Safari).
+  useEffect(() => {
+    if (phase !== "camera" || !videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    void videoRef.current.play().catch(() => undefined);
+  }, [phase]);
+
+  // Se a app for para segundo plano com a câmara aberta, desligá-la.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === "hidden" && (phaseRef.current === "camera" || phaseRef.current === "starting")) {
+        stopCamera();
+        setPhase("start");
+      }
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, []);
+
+  // Aviso "está a demorar" durante a leitura.
+  useEffect(() => {
+    if (phase !== "reading") return;
+    setSlow(false);
+    const t = setTimeout(() => setSlow(true), SLOW_MS);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   const read = async (blob: Blob) => {
+    cancelRead();
+    const ctrl = new AbortController();
+    readRef.current = ctrl;
     setError(null);
     setProgress(0);
+    setStage("barcode");
     setPhase("reading");
     try {
       const canvas = await prepareImage(blob);
+      if (ctrl.signal.aborted) return;
       // Código de barras primeiro (rápido); depois o texto, na mesma fotografia.
       const code = await decodeBarcode(canvas).catch(() => null);
-      setBarcode(code);
-      const res = await recognizeImage(canvas, setProgress);
+      if (ctrl.signal.aborted) return;
+      setStage("text");
+      const res = await recognizeImage(canvas, setProgress, { signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
       const parsed = parseOcr(res.text, res.rawText);
-      setRaw(res.rawText);
-      setUnclear(isUnclear(res.text, res.confidence) && !code?.ean);
-      setFields({
+      const next: ParsedBox = {
         ...parsed,
         // O código de barras é mais fiável do que os números lidos por OCR.
         ean: code?.ean ?? parsed.ean,
         expiry: parsed.expiry ?? code?.expiry,
-      });
-      setPhase("review");
-    } catch {
-      setError(m.scan.ocrError);
-      setPhase("preview");
+      };
+      setBarcode(code);
+      setRaw(res.rawText);
+      setFields(next);
+      setUnsure(uncertainFields(next, res.text, res.confidence, code?.ean));
+      // Sem texto útil (ou nada reconhecível) nem código de barras: mensagem simples em vez de campos vazios.
+      const nothingFound = !Object.values(next).some((v) => v?.trim());
+      if ((isUnclear(res.text, res.confidence) || nothingFound) && !code?.ean) {
+        setFailMsg(m.scan.failed);
+        setPhase("failed");
+      } else {
+        setPhase("review");
+      }
+    } catch (e) {
+      if (e instanceof OcrCancelled || ctrl.signal.aborted) return;
+      setFailMsg(m.scan.ocrError);
+      setPhase("failed");
+    } finally {
+      if (readRef.current === ctrl) readRef.current = null;
     }
   };
 
-  // A leitura começa logo a seguir à fotografia: menos um passo para a utilizadora.
-  const acceptPhoto = (blob: Blob) => {
+  // Mostra a fotografia em grande; a leitura só começa com "Usar esta fotografia".
+  const showPhoto = (blob: Blob, from: Source) => {
     clearPhoto();
+    setError(null);
+    setSource(from);
     setPhoto({ blob, url: URL.createObjectURL(blob) });
-    void read(blob);
+    setPhase("preview");
   };
 
-  const openCamera = async () => {
+  const openLiveCamera = async () => {
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
       setError(m.scan.cameraUnavailable);
-      cameraFileRef.current?.click();
       return;
     }
+    setPhase("starting");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        // Pedir a resolução mais alta possível: texto pequeno precisa de pixels.
+        // "ideal" e não "exact": o navegador escolhe a melhor resolução que conseguir.
         video: { facingMode: { ideal: "environment" }, width: { ideal: 3840 }, height: { ideal: 2160 } },
         audio: false,
       });
+      // A utilizadora pode ter cancelado enquanto a câmara abria.
+      if (phaseRef.current !== "starting") {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       setPhase("camera");
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play().catch(() => undefined);
-        }
-      });
     } catch (e) {
       const name = e instanceof DOMException ? e.name : "";
-      setError(name === "NotAllowedError" || name === "SecurityError" ? m.scan.cameraDenied : m.scan.cameraUnavailable);
+      if (phaseRef.current !== "starting") return;
+      setError(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? m.scan.cameraDenied
+          : name === "NotReadableError" || name === "AbortError"
+            ? m.scan.cameraBusy
+            : m.scan.cameraUnavailable,
+      );
+      setPhase("start");
     }
   };
 
-  const takePhoto = () => {
+  const takeLivePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
     const crop = guideCrop(video.videoWidth, video.videoHeight, video.clientWidth, video.clientHeight);
@@ -116,18 +195,30 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     canvas.toBlob(
       (blob) => {
         stopCamera();
-        if (blob) acceptPhoto(blob);
-        else setError(m.scan.cameraUnavailable);
+        if (blob) showPhoto(blob, "live");
+        else {
+          setError(m.scan.cameraUnavailable);
+          setPhase("start");
+        }
       },
       "image/jpeg",
       0.92,
     );
   };
 
-  const onFile = (e: ChangeEvent<HTMLInputElement>) => {
+  const onFile = (from: Source) => (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (f) acceptPhoto(f);
+    // Cancelar o seletor não muda nada: fica tudo como estava.
+    if (f) showPhoto(f, from);
+  };
+
+  const retake = () => {
+    cancelRead();
+    clearPhoto();
+    setPhase("start");
+    if (source === "live") void openLiveCamera();
+    else (source === "gallery" ? galleryRef : cameraFileRef).current?.click();
   };
 
   const confirm = () => {
@@ -149,9 +240,16 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
 
   const close = () => {
     stopCamera();
+    cancelRead();
     clearPhoto();
     onClose();
   };
+
+  const manualButton = (variant: "primary" | "secondary" | "ghost") => (
+    <Button variant={variant} block onClick={close}>
+      ✍ {m.scan.manual}
+    </Button>
+  );
 
   return (
     <Card className="flex flex-col gap-4 ring-2 ring-primary">
@@ -163,8 +261,8 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
       </div>
 
       {/* Câmara nativa do iPhone (foto em resolução total, com focagem automática) e galeria. */}
-      <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} />
-      <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+      <input ref={cameraFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile("native")} />
+      <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={onFile("gallery")} />
 
       {phase === "start" ? (
         <>
@@ -176,18 +274,32 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
               ))}
             </ul>
           </div>
-          <Button block className="min-h-16 text-xl" onClick={() => void openCamera()}>
-            📷 {m.scan.openCamera}
-          </Button>
-          <Button variant="secondary" block onClick={() => cameraFileRef.current?.click()}>
-            📱 {m.scan.nativeCamera}
+          <Button block className="min-h-16 text-xl" onClick={() => cameraFileRef.current?.click()}>
+            📷 {m.scan.takePhoto}
           </Button>
           <Button variant="secondary" block onClick={() => galleryRef.current?.click()}>
             🖼 {m.scan.chooseFile}
           </Button>
+          {hasLiveCamera ? (
+            <Button variant="secondary" block onClick={() => void openLiveCamera()}>
+              🎥 {m.scan.openCamera}
+            </Button>
+          ) : null}
+          {manualButton("ghost")}
           <p className="text-base text-muted">
             {m.scan.photoNotSaved} {m.scan.firstTimeNote}
           </p>
+        </>
+      ) : null}
+
+      {phase === "starting" ? (
+        <>
+          <div role="status" className="flex aspect-[3/4] w-full items-center justify-center rounded-2xl bg-black text-xl font-semibold text-white">
+            {m.scan.startingCamera}
+          </div>
+          <Button variant="secondary" block onClick={() => setPhase("start")}>
+            {m.common.cancel}
+          </Button>
         </>
       ) : null}
 
@@ -207,7 +319,7 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
             />
           </div>
           <p className="text-center text-lg font-semibold">{m.scan.frameHint}</p>
-          <Button block className="min-h-16 text-xl" onClick={takePhoto}>
+          <Button block className="min-h-16 text-xl" onClick={takeLivePhoto}>
             ⬤ {m.scan.takePhoto}
           </Button>
           <Button
@@ -223,28 +335,54 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
         </>
       ) : null}
 
-      {photo && (phase === "preview" || phase === "reading") ? (
-        <img src={photo.url} alt="" className="max-h-96 w-full rounded-2xl object-contain bg-gray-100" />
+      {photo && (phase === "preview" || phase === "reading" || phase === "failed") ? (
+        <img
+          src={photo.url}
+          alt=""
+          className={`w-full rounded-2xl bg-gray-100 object-contain ${phase === "preview" ? "max-h-[60vh]" : "max-h-56"}`}
+        />
       ) : null}
 
       {phase === "preview" ? (
         <>
           <Button block className="min-h-16 text-xl" onClick={() => photo && void read(photo.blob)}>
-            🔤 {m.scan.read}
+            ✓ {m.scan.usePhoto}
           </Button>
-          <Button variant="secondary" block onClick={() => { clearPhoto(); setPhase("start"); }}>
-            {m.scan.retake}
+          <Button variant="secondary" block onClick={retake}>
+            📷 {source === "gallery" ? m.scan.chooseAnother : m.scan.retake}
           </Button>
         </>
       ) : null}
 
       {phase === "reading" ? (
-        <div role="status" className="flex flex-col gap-2">
-          <p className="text-xl font-semibold">{m.scan.reading(Math.round(progress * 100))}</p>
-          <div className="h-4 overflow-hidden rounded-full bg-gray-200">
-            <div className="h-full bg-primary transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <>
+          <div role="status" aria-live="polite" className="flex flex-col gap-2">
+            <p className="text-xl font-semibold">{stage === "barcode" ? m.scan.readingBarcode : m.scan.reading(Math.round(progress * 100))}</p>
+            <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-full bg-primary transition-all" style={{ width: `${Math.max(3, Math.round(progress * 100))}%` }} />
+            </div>
+            {slow ? <p className="text-lg">{m.scan.slow}</p> : null}
           </div>
-        </div>
+          {manualButton("secondary")}
+        </>
+      ) : null}
+
+      {phase === "failed" ? (
+        <>
+          <Notice tone="warn">
+            <p className="font-bold">{failMsg}</p>
+            <p className="mt-1 text-base">{m.scan.unclearTips}</p>
+          </Notice>
+          {manualButton("primary")}
+          <Button variant="secondary" block onClick={retake}>
+            📷 {source === "gallery" ? m.scan.chooseAnother : m.scan.retake}
+          </Button>
+          {photo ? (
+            <Button variant="ghost" block onClick={() => void read(photo.blob)}>
+              {m.scan.tryAgain}
+            </Button>
+          ) : null}
+        </>
       ) : null}
 
       {phase === "review" ? (
@@ -267,23 +405,30 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
           ) : (
             <Notice>{m.scan.noBarcode}</Notice>
           )}
-          {unclear ? (
-            <Notice tone="warn">
-              <p className="font-bold">{m.scan.unclear}</p>
-              <p className="mt-1 text-base">{m.scan.unclearTips}</p>
-            </Notice>
-          ) : (
-            <Notice tone="warn">{m.scan.review}</Notice>
-          )}
+          <Notice tone="warn">{m.scan.review}</Notice>
           <div className="flex flex-col gap-3">
             <h3 className="text-xl font-bold">{m.scan.found}</h3>
             {FIELD_KEYS.map((k) => (
-              <Field key={k} label={m.scan.fields[k]} htmlFor={`ocr-${k}`}>
+              <Field
+                key={k}
+                label={m.scan.fields[k]}
+                hint={unsure.has(k) ? `⚠ ${m.scan.checkThis}` : undefined}
+                htmlFor={`ocr-${k}`}
+              >
                 <TextInput
                   id={`ocr-${k}`}
                   value={fields[k] ?? ""}
                   inputMode={k === "ean" ? "numeric" : undefined}
-                  onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))}
+                  className={unsure.has(k) ? "ring-2 ring-amber-400" : undefined}
+                  onChange={(e) => {
+                    setFields((f) => ({ ...f, [k]: e.target.value }));
+                    // Depois de corrigido à mão, já não é uma dúvida.
+                    setUnsure((u) => {
+                      const n = new Set(u);
+                      n.delete(k);
+                      return n;
+                    });
+                  }}
                 />
               </Field>
             ))}
@@ -296,8 +441,8 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
           <Button block className="min-h-16 text-xl" onClick={confirm}>
             ✓ {m.scan.useData}
           </Button>
-          <Button variant={unclear ? "primary" : "secondary"} block onClick={() => { clearPhoto(); setPhase("start"); }}>
-            📷 {m.scan.retake}
+          <Button variant="secondary" block onClick={retake}>
+            📷 {source === "gallery" ? m.scan.chooseAnother : m.scan.retake}
           </Button>
         </>
       ) : null}

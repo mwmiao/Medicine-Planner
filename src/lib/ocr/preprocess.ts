@@ -71,14 +71,19 @@ export async function prepareImage(blob: Blob): Promise<HTMLCanvasElement> {
   return canvas;
 }
 
-export function rotateCanvas(src: HTMLCanvasElement, degrees: 0 | 90 | 180 | 270): HTMLCanvasElement {
+/** Roda a imagem (ângulos retos ou pequenas inclinações); os cantos novos ficam brancos. */
+export function rotateCanvas(src: HTMLCanvasElement, degrees: number): HTMLCanvasElement {
   if (degrees === 0) return src;
   const out = document.createElement("canvas");
-  const swap = degrees !== 180;
-  out.width = swap ? src.height : src.width;
-  out.height = swap ? src.width : src.height;
+  const rad = (degrees * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  out.width = Math.round(src.width * cos + src.height * sin);
+  out.height = Math.round(src.width * sin + src.height * cos);
   const ctx = out.getContext("2d");
   if (!ctx) throw new Error("Canvas not available");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, out.width, out.height);
   ctx.translate(out.width / 2, out.height / 2);
   ctx.rotate((degrees * Math.PI) / 180);
   ctx.drawImage(src, -src.width / 2, -src.height / 2);

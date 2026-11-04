@@ -134,7 +134,16 @@ export function MedicationForm({
         </Button>
       </div>
 
-      {scanning ? <BoxScanner onExtract={(ocr) => void onOcr(ocr)} onClose={() => setScanning(false)} /> : null}
+      {scanning ? (
+        <BoxScanner
+          onExtract={(ocr) => void onOcr(ocr)}
+          onClose={() => {
+            setScanning(false);
+            // Fechar o leitor leva diretamente ao preenchimento à mão.
+            setTimeout(() => document.getElementById("name")?.focus(), 0);
+          }}
+        />
+      ) : null}
 
       {sameBox ? (
         <Notice tone="warn">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestSearchTerm, isUnclear, parseBoxText, parseOcr } from "@/lib/ocr/parse";
+import { bestSearchTerm, isUnclear, parseBoxText, parseOcr, uncertainFields } from "@/lib/ocr/parse";
 
 describe("leitura do texto da caixa", () => {
   it("encontra nome, dosagem, forma, quantidade, validade e fabricante", () => {
@@ -53,5 +53,26 @@ describe("leitura do texto da caixa", () => {
     expect(isUnclear("~ |", 90)).toBe(true);
     expect(isUnclear("Paracetamol 500 mg", 30)).toBe(true);
     expect(isUnclear("Paracetamol 500 mg", 80)).toBe(false);
+  });
+});
+
+describe("campos a confirmar", () => {
+  it("marca campos que só vieram do texto pouco confiante", () => {
+    const clean = "Ben-u-ron\n500 mg comprimidos";
+    const fields = { name: "Ben-u-ron", strength: "500 mg", form: "Comprimido", expiry: "03/2027", ean: "5601234567890" };
+    expect(uncertainFields({ form: "Comprimido revestido" }, "20 comprimidos revestidos", 90).size).toBe(0);
+    const u = uncertainFields(fields, clean, 88, "5601234567890");
+    expect([...u]).toEqual(["expiry"]);
+  });
+
+  it("marca todos os campos lidos quando a confiança geral é baixa (exceto o código de barras)", () => {
+    const u = uncertainFields({ name: "Brufen", ean: "5601234567890" }, "Brufen", 50, "5601234567890");
+    expect([...u]).toEqual(["name"]);
+  });
+
+  it("ignora campos vazios e EAN só lido por OCR é para confirmar", () => {
+    const u = uncertainFields({ name: "", ean: "5601234567890" }, "5601234567890", 90);
+    expect(u.size).toBe(0);
+    expect(uncertainFields({ ean: "5601234567890" }, "", 90).has("ean")).toBe(true);
   });
 });

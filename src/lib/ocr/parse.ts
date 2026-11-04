@@ -163,3 +163,31 @@ export function isUnclear(raw: string, confidence: number): boolean {
   const useful = raw.replace(/[^\p{L}\p{N}]/gu, "");
   return useful.length < 6 || confidence < 45;
 }
+
+/** Abaixo desta confiança média, todos os campos lidos por OCR pedem confirmação. */
+const SURE_CONFIDENCE = 75;
+
+const squash = (s: string) => comparable(s).replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * Campos que a utilizadora deve confirmar com atenção: os que não aparecem no
+ * texto lido com boa confiança, ou todos se a leitura geral foi fraca. O EAN do
+ * código de barras (com dígito de controlo válido) é considerado seguro.
+ */
+export function uncertainFields(
+  fields: ParsedBox,
+  cleanText: string,
+  confidence: number,
+  barcodeEan?: string,
+): Set<keyof ParsedBox> {
+  const sure = squash(cleanText);
+  const out = new Set<keyof ParsedBox>();
+  for (const [k, v] of Object.entries(fields) as [keyof ParsedBox, string | undefined][]) {
+    if (!v?.trim()) continue;
+    if (k === "ean" && barcodeEan && v === barcodeEan) continue;
+    // A forma é um rótulo normalizado ("Comprimido"): procura o padrão, não o texto exato.
+    const seen = k === "form" ? !!FORMS.find((f) => f.label === v)?.re.test(cleanText) : sure.includes(squash(v));
+    if (confidence < SURE_CONFIDENCE || !seen) out.add(k);
+  }
+  return out;
+}

@@ -24,28 +24,41 @@ export type OcrResult = {
   rotation: Rotation;
 };
 
-type Rotation = 0 | 90 | 180 | 270;
+/** Graus: ângulos retos (caixa de lado) ou pequena inclinação (caixa torta). */
+type Rotation = 0 | 90 | 180 | 270 | 12 | -12;
 /** Modo de segmentação do Tesseract: "3" automático, "11" texto disperso. */
 type Psm = "3" | "11";
 export type OcrAttempt = { rotation: Rotation; psm: Psm };
 
 /**
  * Ordem das tentativas: primeiro a fotografia tal como está (análise automática
- * e depois "texto disperso", que lida melhor com reflexos e logótipos), e só
+ * e depois "texto disperso", que lida melhor com reflexos e logótipos), depois
+ * endireitar uma caixa torta (o Tesseract só lê bem até ~8° de inclinação), e só
  * depois a caixa rodada — muitas vezes a caixa é fotografada de lado.
  */
 export const DEFAULT_ATTEMPTS: OcrAttempt[] = [
   { rotation: 0, psm: "3" },
   { rotation: 0, psm: "11" },
+  { rotation: 12, psm: "3" },
+  { rotation: -12, psm: "3" },
   { rotation: 90, psm: "11" },
   { rotation: 270, psm: "11" },
   { rotation: 180, psm: "11" },
 ];
 
-export type OcrOptions = { attempts?: OcrAttempt[] };
+export type OcrOptions = {
+  attempts?: OcrAttempt[];
+  /** Permite parar a leitura (ex.: a utilizadora prefere escrever à mão). */
+  signal?: AbortSignal;
+};
 
-/** Uma leitura é "boa o suficiente" para não tentar outras rotações. */
-const GOOD_ENOUGH = { goodChars: 25, meanConfidence: 72 };
+export class OcrCancelled extends Error {}
+
+/**
+ * Uma leitura é "boa o suficiente" para não tentar outras rotações. Leituras
+ * nítidas dão ~90% de confiança média; uma caixa torta lida às avessas dá ~70%.
+ */
+const GOOD_ENOUGH = { goodChars: 25, meanConfidence: 85 };
 
 function linesOf(page: Page): OcrLine[] {
   return (page.blocks ?? []).flatMap((b) =>
@@ -64,7 +77,10 @@ export async function recognizeImage(
   onProgress?: (fraction: number) => void,
   options: OcrOptions = {},
 ): Promise<OcrResult> {
-  const { attempts = DEFAULT_ATTEMPTS } = options;
+  const { attempts = DEFAULT_ATTEMPTS, signal } = options;
+  const checkCancel = () => {
+    if (signal?.aborted) throw new OcrCancelled();
+  };
   const canvas = image instanceof Blob ? await prepareImage(image) : image;
   const { createWorker, PSM } = await import("tesseract.js");
 
@@ -75,15 +91,21 @@ export async function recognizeImage(
       if (m.status === "recognizing text") report(m.progress);
     },
   });
+  // Parar o worker liberta logo o processador; a tentativa em curso é abandonada.
+  const stop = () => void worker.terminate().catch(() => undefined);
+  signal?.addEventListener("abort", stop, { once: true });
   try {
+    checkCancel();
     let best: (Awaited<ReturnType<typeof recognizeOnce>> & { rotation: Rotation }) | null = null;
     for (const { rotation, psm } of attempts) {
+      checkCancel();
       await worker.setParameters({
         tessedit_pageseg_mode: psm === "3" ? PSM.AUTO : PSM.SPARSE_TEXT,
         user_defined_dpi: "300",
         preserve_interword_spaces: "1",
       });
       const res = await recognizeOnce(worker, rotateCanvas(canvas, rotation));
+      checkCancel();
       if (!best || res.score > best.score) best = { ...res, rotation };
       step++;
       if (best.goodChars >= GOOD_ENOUGH.goodChars && best.meanConfidence >= GOOD_ENOUGH.meanConfidence) break;
@@ -97,7 +119,11 @@ export async function recognizeImage(
       goodChars: result.goodChars,
       rotation: result.rotation,
     };
+  } catch (e) {
+    if (signal?.aborted) throw new OcrCancelled();
+    throw e;
   } finally {
-    await worker.terminate();
+    signal?.removeEventListener("abort", stop);
+    await worker.terminate().catch(() => undefined);
   }
 }

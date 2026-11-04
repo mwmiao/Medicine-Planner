@@ -169,6 +169,8 @@ export function InfarmedPanel({
         </Button>
       </form>
 
+      {busy ? <Notice>{m.infarmed.searching}</Notice> : null}
+
       {result ? (
         <div className="flex flex-col gap-3" aria-live="polite">
           {result.cached.length ? <h3 className="text-xl font-bold">{m.infarmed.cached}</h3> : null}
