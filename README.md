@@ -1,53 +1,37 @@
+<div align="center">
+
+<a href="public/icons/icon-512.png"><img src="public/icons/icon-192.png" alt="Planeador de Medicação" width="96" height="96"></a>
+
 # Planeador de Medicação · 用药小助手
 
-Aplicação web (PWA) simples e bilingue — **português europeu** e **chinês simplificado** — para ajudar uma pessoa idosa a tomar os medicamentos a horas, no iPhone, a partir de um atalho no ecrã principal.
+**Tomas de hoje, lembretes no telemóvel, leitura da caixa com a câmara e sincronização com o NAS da família.**
 
-- Mostra as tomas de hoje, com botões grandes: **"Já tomei"** e **"Adiar 15 min"**.
-- Guarda tudo no telemóvel (IndexedDB, via Dexie.js) e, opcionalmente, **no NAS da família** (sincronização sem contas, com um código). Não há login.
-- Lê a caixa com a câmara: texto em português (OCR com Tesseract.js) e código de barras EAN-13 / DataMatrix, no próprio telemóvel.
-- Envia **lembretes Web Push** a partir do NAS, mesmo com a app fechada (iPhone com iOS 16.4+, app no ecrã principal).
-- Liga cada medicamento ao registo oficial do **INFARMED / INFOMED**.
-- Funciona offline depois da primeira utilização.
+[![Docker image](https://github.com/mwmiao/Medicine-Planner/actions/workflows/docker.yml/badge.svg)](https://github.com/mwmiao/Medicine-Planner/actions/workflows/docker.yml)
+[![Docker Hub](https://img.shields.io/docker/v/eazyeight/medicine-planner?label=docker%20hub&sort=semver)](https://hub.docker.com/r/eazyeight/medicine-planner)
 
-> ⚠️ Esta informação é apenas para referência. Siga sempre as indicações do seu médico ou farmacêutico.
+Português europeu · 简体中文
+
+</div>
 
 ---
 
-## 1. Executar localmente
+Aplicação web (PWA) simples e bilingue — **português europeu** e **chinês simplificado** — para ajudar uma pessoa idosa a tomar os medicamentos a horas, no iPhone, a partir de um atalho no ecrã principal. Os dados ficam no telemóvel e, se quiser, no seu próprio servidor (NAS).
 
-Requisitos: **Node.js 20 ou superior** e npm.
+## Funcionalidades
 
-```bash
-npm install
-npm run dev
-```
+- **Hoje:** as tomas do dia com botões grandes — **"Já tomei"** e **"Adiar 15 min"**.
+- **Dados no telemóvel:** tudo é guardado em IndexedDB (Dexie.js). Não há login.
+- **Sincronização com o NAS:** opcional, sem contas, com um código. Junta as cópias do Safari e do ecrã principal sem perder tomas.
+- **Lembretes Web Push:** enviados a partir do NAS, mesmo com a app fechada (iOS 16.4+, app no ecrã principal).
+- **Fotografar a caixa:** texto em português (OCR com Tesseract.js) e código de barras EAN-13 / DataMatrix, no próprio telemóvel.
+- **INFARMED / INFOMED:** liga cada medicamento ao registo oficial, com fonte e data.
+- **Informação do medicamento:** indicações do médico, folheto, notas e avisos de segurança, sempre editáveis.
+- **Cópia de segurança:** exportar e importar JSON, e histórico de versões no NAS.
+- **Bilingue e acessível:** pt-PT e 中文, três tamanhos de texto, funciona offline depois da primeira utilização.
 
-Abra <http://localhost:3000>. Para experimentar no iPhone na mesma rede Wi-Fi, use o endereço IP do computador (ex.: `http://192.168.1.20:3000`). A câmara (`getUserMedia`) só funciona em **HTTPS** ou em `localhost`; em HTTP simples a app usa automaticamente a alternativa "Escolher fotografia".
+> ⚠️ Esta informação é apenas para referência. Siga sempre as indicações do seu médico ou farmacêutico.
 
-Outros comandos:
-
-| Comando | O que faz |
-| --- | --- |
-| `npm run build` | Gera a versão estática final na pasta `out/` |
-| `npm start` | Serve a pasta `out/` com o servidor do NAS (`SYNC_CODE=… npm start` liga a sincronização) |
-| `npm test` | Corre os testes (Vitest + fake-indexeddb) |
-| `npm run typecheck` | Verifica os tipos TypeScript |
-| `npm run icons` | Volta a gerar os ícones PNG em `public/icons/` |
-
-## 2. Publicar gratuitamente (Vercel)
-
-A app é **100 % estática** (`output: "export"`), por isso pode ser alojada em qualquer serviço gratuito.
-
-**Vercel:**
-
-1. Crie uma conta gratuita em <https://vercel.com> e coloque este projeto num repositório GitHub.
-2. Em Vercel → **Add New… → Project**, importe o repositório.
-3. Deixe as opções detetadas (Framework: Next.js; Build Command: `npm run build`). Clique em **Deploy**.
-4. Recebe um endereço `https://…vercel.app` com HTTPS — necessário para a câmara e para instalar a app.
-
-Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando: `npm run build`).
-
-### Alternativa: Docker no NAS (com Watchtower)
+## Instalar com Docker Compose
 
 A cada push para `main`, o GitHub Actions (`.github/workflows/docker.yml`) corre os testes, gera a app e publica a imagem `eazyeight/medicine-planner:latest` (amd64 e arm64) no Docker Hub. São precisos os segredos `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
 
@@ -75,16 +59,42 @@ volumes:
   medicine-planner-data:
 ```
 
-**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:1380` a app abre, mas fica sem modo offline e usa "Escolher da galeria" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel). O código de sincronização viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
+```bash
+docker compose up -d
+```
 
-### Guardar os dados no NAS (sincronização)
+Abra `http://IP-do-NAS:1380`. Se usar uma pasta do NAS em vez de um volume (`./data:/data`), dê-lhe permissões ao utilizador 1000 (`chown 1000:1000 data`), porque o servidor não corre como root.
+
+**Importante — HTTPS:** no iPhone, a câmara (`getUserMedia`), o service worker (funcionamento offline) e as notificações só funcionam em **HTTPS**. Através de `http://IP-do-NAS:1380` a app abre, mas fica sem modo offline e usa "Escolher da galeria" em vez da câmara ao vivo. Coloque o contentor atrás de um proxy reverso com certificado válido (ex.: proxy reverso do Synology/QNAP com Let's Encrypt, Nginx Proxy Manager, Caddy ou Cloudflare Tunnel).
+
+### Atualizações automáticas (Watchtower)
+
+A etiqueta `com.centurylinklabs.watchtower.enable=true` faz o Watchtower atualizar o contentor quando aparece uma nova imagem `latest`.
+
+### Alternativa: Vercel
+
+A app é **100 % estática** (`output: "export"`), por isso pode ser alojada em qualquer serviço gratuito, mas **sem** sincronização nem lembretes (precisam do servidor do NAS).
+
+1. Coloque o projeto num repositório GitHub e, em <https://vercel.com>, escolha **Add New… → Project**.
+2. Deixe as opções detetadas (Framework: Next.js; Build Command: `npm run build`) e clique em **Deploy**.
+
+Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando: `npm run build`).
+
+## Segurança
+
+- A sincronização usa um único **código de sincronização** (`SYNC_CODE`), sem contas. O servidor bloqueia após 10 códigos errados em 15 minutos.
+- O código viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
+- A fotografia da caixa **não é guardada**: fica só na memória durante a leitura.
+- Para expor o NAS à internet, prefira um túnel ou proxy com controlo de acesso (ex.: Cloudflare Tunnel com Cloudflare Access).
+
+## Guardar os dados no NAS (sincronização)
 
 No iPhone, o Safari e a app adicionada ao ecrã principal têm **armazenamento separado**: o que se escreve num não aparece no outro. O mesmo acontece com endereços diferentes (IP, nome, http/https). Para os dados nunca se perderem, a imagem Docker inclui um pequeno servidor (`server/server.mjs`, Node + a biblioteca `web-push`) que:
 
 - serve a app (como o nginx fazia: cache, 404, redirecionamentos relativos);
 - guarda os dados em `/data/medicine-planner.json` (volume), com escrita atómica;
 - mantém as últimas 50 versões em `/data/history/` (`HISTORY_KEEP` para mudar);
-- exige o **código de sincronização** (`SYNC_CODE`) — não há contas; bloqueia após 10 códigos errados em 15 minutos.
+- exige o **código de sincronização** (`SYNC_CODE`).
 
 No telemóvel: **Definições → Guardar no NAS** → escrever o código → **Ligar ao NAS**. Faça isto em **cada** sítio onde a app é usada (Safari e ecrã principal): a primeira ligação **junta** os dados de ambos. Depois a app:
 
@@ -92,11 +102,20 @@ No telemóvel: **Definições → Guardar no NAS** → escrever o código → **
 - sincroniza ao abrir, ao voltar à app, quando a rede volta, a cada minuto e logo depois de cada alteração;
 - junta alterações dos dois lados: ganha a mais recente, apagar não "ressuscita", e **uma toma marcada como tomada nunca é substituída por "adiada"** (só "Desfazer" a remove) — para evitar doses a dobrar.
 
-"Importar dados" e "Apagar todos os dados" substituem também a cópia do NAS. Para recuperar uma versão antiga, copie um ficheiro de `/data/history/` para `/data/medicine-planner.json` com o contentor parado.
+## Cópia de segurança e restauro
 
-Se usar uma pasta do NAS em vez de um volume (`./data:/data`), dê-lhe permissões ao utilizador 1000 (`chown 1000:1000 data`), porque o servidor não corre como root.
+| O que quer fazer | Como |
+| --- | --- |
+| Guardar uma cópia | **Definições → Exportar dados** (ficheiro JSON) |
+| Restaurar uma cópia | **Definições → Importar dados** (substitui os dados atuais, com confirmação) |
+| Apagar tudo | **Definições → Apagar todos os dados** (com dupla confirmação) |
+| Recuperar uma versão antiga do NAS | Copie um ficheiro de `/data/history/` para `/data/medicine-planner.json` com o contentor parado |
 
-## 3. Adicionar ao ecrã principal do iPhone
+"Importar dados" e "Apagar todos os dados" substituem também a cópia do NAS.
+
+## Instalar como app (PWA)
+
+### iPhone
 
 1. Abra o endereço da app no **Safari** (tem de ser o Safari).
 2. Toque no botão **Partilhar** (quadrado com uma seta para cima).
@@ -105,7 +124,7 @@ Se usar uma pasta do NAS em vez de um volume (`./data:/data`), dê-lhe permissõ
 
 A partir daí a app abre em ecrã inteiro, sem barra do Safari, e funciona sem internet. As mesmas instruções estão em **Definições** dentro da app, nas duas línguas.
 
-## 4. Lembretes (Web Push a partir do NAS)
+## Lembretes (Web Push a partir do NAS)
 
 Os lembretes chegam **mesmo com a app fechada e o ecrã bloqueado**. Como funciona:
 
@@ -135,7 +154,20 @@ Variáveis do contentor:
 
 Não são usadas funcionalidades que exijam certificado de programador iOS, App Store ou notificações nativas.
 
-## 5. Como funciona a pesquisa no INFARMED
+## Fotografar a caixa (OCR e código de barras)
+
+A app ajuda a **identificar** o medicamento; nunca sabe a receita do médico. A dose e o horário são sempre os que o utilizador escreve ou confirma.
+
+- Usa a câmara traseira com `getUserMedia` (com retângulo-guia), a câmara nativa do iPhone, ou uma fotografia da galeria (`<input type="file" accept="image/*" capture="environment">`).
+- **OCR só em português / alfabeto latino** (`por`), num Web Worker do Tesseract.js. Não há OCR de chinês: letras de outros alfabetos são tratadas como ruído. Os acentos (ã, ç, é, ê, í, ó, ú) mantêm-se; as maiúsculas são usadas só para comparar; os nomes nunca são traduzidos.
+- A fotografia é preparada (tamanho, contraste) e lida também rodada (90°/180°/270°), ficando a melhor leitura.
+- **Código de barras** na mesma fotografia (biblioteca gratuita `@zxing`): prioridade ao **EAN-13**; também lê o **DataMatrix GS1** das caixas europeias (GTIN, validade, lote). O número é mostrado e verificado (dígito de controlo). Se já existir um medicamento guardado com o mesmo EAN, a app avisa. Um EAN **nunca** é usado sem confirmação do utilizador.
+- Sugere: nome, substância ativa (DCI), dosagem, forma farmacêutica, unidades na caixa, validade, fabricante e EAN — tudo editável — e pesquisa logo no INFARMED.
+- O texto lido completo fica numa secção recolhível **"Texto lido (em bruto)"** para conferir.
+- Da **primeira vez** é preciso internet para descarregar o motor e o idioma (de cdn.jsdelivr.net). Depois ficam em cache.
+- **A fotografia não é guardada.** Fica só na memória durante a leitura, pode ser apagada com "Apagar fotografia" e é libertada ao usar os dados.
+
+## Pesquisa no INFARMED
 
 ### O que foi investigado
 
@@ -162,15 +194,11 @@ Na investigação feita (outubro de 2026):
 4. Ao selecionar, os campos do formulário são **pré-preenchidos, mas tudo continua editável**. O registo é guardado em cache no IndexedDB **com a data de obtenção**, e fica disponível offline e em pesquisas futuras.
 5. Em todo o lado é mostrada a **fonte** e a **data**. Dados escritos pelo utilizador aparecem como "Introduzido manualmente (copiado do INFARMED)" ou "Escrito à mão", **nunca** como informação oficial gerada automaticamente.
 
-### Quando não há resultado
+Quando não há resultado, aparece uma mensagem amigável nas duas línguas, com as opções de abrir o INFARMED ou **escrever os dados à mão**. O medicamento pode ser guardado na mesma.
 
-Aparece uma mensagem amigável nas duas línguas, com as opções de abrir o INFARMED ou **escrever os dados à mão**. O medicamento pode ser guardado na mesma.
+Se no futuro existir uma API, basta implementar a interface `InfarmedProvider` (`src/lib/infarmed/provider.ts`) e chamá-la com `setDefaultProvider(...)`, se necessário através de uma pequena rota/proxy por causa de CORS.
 
-### Se no futuro existir uma API
-
-Basta implementar a interface `InfarmedProvider` (`src/lib/infarmed/provider.ts`) e chamá-la com `setDefaultProvider(...)`, se necessário através de uma pequena rota/proxy por causa de CORS. O resto da app (resultados, seleção, cache, fonte e data) já está preparado.
-
-## 6. Informação do medicamento
+## Informação do medicamento
 
 Cada medicamento tem uma secção **"Ver informação"** (recolhível), com estes blocos separados:
 
@@ -181,24 +209,26 @@ Cada medicamento tem uma secção **"Ver informação"** (recolhível), com este
 
 Regras de segurança fixas: se não houver orientação para uma toma esquecida aparece *"Se se esquecer de uma toma, siga as instruções da embalagem ou pergunte ao seu médico ou farmacêutico. Não tome uma dose a dobrar."*, e é sempre mostrado o aviso de sinais urgentes (dificuldade em respirar, inchaço da cara ou garganta → 112). A app **não gera** posologias, interações, contraindicações nem efeitos secundários. O texto é mostrado tal como foi escrito (a app não traduz automaticamente informação médica).
 
-## 7. Fotografar a caixa (OCR e código de barras)
+## Desenvolvimento
 
-A app ajuda a **identificar** o medicamento; nunca sabe a receita do médico. A dose e o horário são sempre os que o utilizador escreve ou confirma.
+Requisitos: **Node.js 20 ou superior** e npm.
 
-- Usa a câmara traseira com `getUserMedia` (com retângulo-guia), a câmara nativa do iPhone, ou uma fotografia da galeria (`<input type="file" accept="image/*" capture="environment">`).
-- **OCR só em português / alfabeto latino** (`por`), num Web Worker do Tesseract.js. Não há OCR de chinês: letras de outros alfabetos são tratadas como ruído. Os acentos (ã, ç, é, ê, í, ó, ú) mantêm-se; as maiúsculas são usadas só para comparar; os nomes nunca são traduzidos.
-- A fotografia é preparada (tamanho, contraste) e lida também rodada (90°/180°/270°), ficando a melhor leitura.
-- **Código de barras** na mesma fotografia (biblioteca gratuita `@zxing`): prioridade ao **EAN-13**; também lê o **DataMatrix GS1** das caixas europeias (GTIN, validade, lote). O número é mostrado e verificado (dígito de controlo). Se já existir um medicamento guardado com o mesmo EAN, a app avisa. Um EAN **nunca** é usado sem confirmação do utilizador.
-- Sugere: nome, substância ativa (DCI), dosagem, forma farmacêutica, unidades na caixa, validade, fabricante e EAN — tudo editável — e pesquisa logo no INFARMED.
-- O texto lido completo fica numa secção recolhível **"Texto lido (em bruto)"** para conferir.
-- Da **primeira vez** é preciso internet para descarregar o motor e o idioma (de cdn.jsdelivr.net). Depois ficam em cache.
-- **A fotografia não é guardada.** Fica só na memória durante a leitura, pode ser apagada com "Apagar fotografia" e é libertada ao usar os dados.
+```bash
+npm install
+npm run dev
+```
 
-## 8. Cópia de segurança
+Abra <http://localhost:3000>. Para experimentar no iPhone na mesma rede Wi-Fi, use o endereço IP do computador (ex.: `http://192.168.1.20:3000`). A câmara (`getUserMedia`) só funciona em **HTTPS** ou em `localhost`; em HTTP simples a app usa automaticamente a alternativa "Escolher fotografia".
 
-Em **Definições**: exportar todos os dados para um ficheiro JSON, importar (substitui os dados atuais, com confirmação) e apagar tudo (com dupla confirmação).
+| Comando | O que faz |
+| --- | --- |
+| `npm run build` | Gera a versão estática final na pasta `out/` |
+| `npm start` | Serve a pasta `out/` com o servidor do NAS (`SYNC_CODE=… npm start` liga a sincronização) |
+| `npm test` | Corre os testes (Vitest + fake-indexeddb) |
+| `npm run typecheck` | Verifica os tipos TypeScript |
+| `npm run icons` | Volta a gerar os ícones PNG em `public/icons/` |
 
-## 9. Estrutura do projeto
+### Estrutura do projeto
 
 ```
 src/
@@ -224,9 +254,13 @@ scripts/                  geração de ícones e ajuste pós-build da exportaç�
 tests/                    testes Vitest
 ```
 
-## 10. Notas técnicas
+### Notas técnicas
 
 - Next.js 16 (App Router), React 19, TypeScript estrito (sem `any`), Tailwind CSS 4.
 - O modo de texto (normal / grande / muito grande) muda o tamanho da fonte da raiz; toda a interface usa `rem`.
 - A interface respeita as margens seguras do iPhone (notch / Dynamic Island) com `env(safe-area-inset-*)`.
 - `scripts/postbuild-export.mjs` corrige os nomes dos ficheiros de pré-carregamento da exportação estática do Next.js 16, para a navegação funcionar em qualquer alojamento estático e offline.
+
+## Licença
+
+Projeto pessoal.
