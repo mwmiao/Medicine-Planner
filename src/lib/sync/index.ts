@@ -2,31 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { db } from "../db";
-import { SyncEngine, syncAvailable, type KeyValue, type SyncState } from "./engine";
-
-const browserKv: KeyValue = {
-  get(k) {
-    try {
-      return localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  set(k, v) {
-    try {
-      localStorage.setItem(k, v);
-    } catch {
-      // armazenamento indisponível
-    }
-  },
-  remove(k) {
-    try {
-      localStorage.removeItem(k);
-    } catch {
-      // armazenamento indisponível
-    }
-  },
-};
+import { browserKv } from "../kv";
+import { SyncEngine, syncAvailable, type SyncState } from "./engine";
 
 let engine: SyncEngine | null = null;
 

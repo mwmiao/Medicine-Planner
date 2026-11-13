@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { markTaken, undoDose } from "@/lib/doses";
 import { createMedication, deleteMedication } from "@/lib/medications";
-import { SyncEngine, syncAvailable, type KeyValue } from "@/lib/sync/engine";
+import type { KeyValue } from "@/lib/kv";
+import { SyncEngine, syncAvailable } from "@/lib/sync/engine";
 import { input, testDb } from "./helpers";
 
 const CODE = "test-sync-code-1234";
@@ -105,13 +106,13 @@ describe("servidor do NAS: API de sincronização", () => {
 describe("sincronização entre Safari e a app do ecrã principal", () => {
   it("junta os dados, propaga tomas, desfazer e apagar", async () => {
     // Começa com o servidor vazio.
-    await fetch(`${base}/api/data`, { method: "PUT", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ force: true, data: { medications: [], doseLogs: [] } }) });
+    await fetch(`${base}/api/data`, { method: "PUT", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ force: true, data: { schema: 1, medications: [], doseLogs: [], infarmedCache: [], tombstones: { medications: {}, doseLogs: {} } } }) });
     expect(await syncAvailable(base)).toBe(true);
 
     const safariDb = testDb();
     const appDb = testDb();
-    const safari = new SyncEngine(safariDb, memoryKv(), base);
-    const app = new SyncEngine(appDb, memoryKv(), base);
+    const safari = new SyncEngine(safariDb, memoryKv(), { baseUrl: base });
+    const app = new SyncEngine(appDb, memoryKv(), { baseUrl: base });
     safari.installHooks();
     app.installHooks();
 
@@ -152,7 +153,7 @@ describe("sincronização entre Safari e a app do ecrã principal", () => {
     proc.kill();
     ({ proc, base } = await startServer({ SYNC_CODE: CODE }));
     const fresh = testDb();
-    const phone = new SyncEngine(fresh, memoryKv(), base);
+    const phone = new SyncEngine(fresh, memoryKv(), { baseUrl: base });
     expect(await phone.connect(CODE)).toBe("idle");
     expect(await names(fresh)).toEqual(["Ben-u-ron"]);
   }, 20_000);

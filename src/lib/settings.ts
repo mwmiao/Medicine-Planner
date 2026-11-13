@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { browserKv } from "./kv";
 import type { Locale, TextSize } from "./types";
 
 // Preferências simples guardadas em localStorage (idioma e tamanho do texto).
@@ -8,20 +9,10 @@ import type { Locale, TextSize } from "./types";
 const KEYS = { locale: "mp.locale", textSize: "mp.textSize" } as const;
 const listeners = new Set<() => void>();
 
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
+const read = (key: string): string | null => browserKv.get(key);
 
 function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // modo privado: a preferência vale só para esta sessão
-  }
+  browserKv.set(key, value);
   listeners.forEach((l) => l());
 }
 

@@ -8,28 +8,13 @@
 
 import { db } from "./db";
 import type { Messages } from "./i18n/pt";
+import { browserKv } from "./kv";
 import { buildReminderJobs } from "./reminders/jobs";
 import { getSync } from "./sync";
+import { nasRequest } from "./sync/nas";
 import type { Locale } from "./types";
 
 const ENABLED_KEY = "mp.push.enabled";
-
-function kvGet(k: string): string | null {
-  try {
-    return localStorage.getItem(k);
-  } catch {
-    return null;
-  }
-}
-
-function kvSet(k: string, v: string | null): void {
-  try {
-    if (v === null) localStorage.removeItem(k);
-    else localStorage.setItem(k, v);
-  } catch {
-    // armazenamento indisponível
-  }
-}
 
 /** A app está a correr a partir do ícone do ecrã principal? */
 export function isStandalone(): boolean {
@@ -43,7 +28,7 @@ export function pushSupported(): boolean {
 }
 
 export function remindersEnabled(): boolean {
-  return kvGet(ENABLED_KEY) === "1" && pushSupported() && Notification.permission === "granted";
+  return browserKv.get(ENABLED_KEY) === "1" && pushSupported() && Notification.permission === "granted";
 }
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
@@ -57,14 +42,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 async function api(method: string, path: string, body?: unknown): Promise<Response> {
   const code = getSync().code;
   if (!code) throw new Error("not_connected");
-  const res = await fetch(path, {
-    method,
-    headers: { Authorization: `Bearer ${code}`, ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res;
+  return nasRequest(code, method, path, body);
 }
 
 function timezone(): string {
@@ -99,7 +77,7 @@ export async function enableReminders(locale: Locale, m: Messages): Promise<Enab
     }
     sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
     await api("POST", "/api/push/subscription", { subscription: sub.toJSON(), locale, timezone: timezone() });
-    kvSet(ENABLED_KEY, "1");
+    browserKv.set(ENABLED_KEY, "1");
     await uploadReminderJobs(locale, m);
     return "enabled";
   } catch {
@@ -108,7 +86,7 @@ export async function enableReminders(locale: Locale, m: Messages): Promise<Enab
 }
 
 export async function disableReminders(): Promise<void> {
-  kvSet(ENABLED_KEY, null);
+  browserKv.remove(ENABLED_KEY);
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = await reg?.pushManager.getSubscription();

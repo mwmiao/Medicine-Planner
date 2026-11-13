@@ -4,17 +4,14 @@
 
 import type { PlannerDB } from "../db";
 import { isDoseLog, isInfarmedRecord, isMedication } from "../backup";
-import { emptyTombstones, mergeSyncData, type SyncData, type Tombstones } from "./merge";
+import type { KeyValue } from "../kv";
+import { emptyTombstones, type SyncData, type Tombstones } from "./merge";
+import { HttpError, nasRequest, type NasIo } from "./nas";
+import { planSync } from "./plan";
 
 export type SyncStatus = "off" | "idle" | "syncing" | "offline" | "unauthorized" | "unavailable" | "error";
 
 export type SyncState = { status: SyncStatus; lastSyncedAt?: string };
-
-export interface KeyValue {
-  get(key: string): string | null;
-  set(key: string, value: string): void;
-  remove(key: string): void;
-}
 
 const K = {
   code: "mp.sync.code",
@@ -27,12 +24,6 @@ const K = {
 
 type Remote = { revision: number; updatedAt: string | null; data: unknown };
 
-class HttpError extends Error {
-  constructor(public readonly status: number) {
-    super(`HTTP ${status}`);
-  }
-}
-
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -40,23 +31,23 @@ function isTombstoneMap(v: unknown): v is Record<string, string> {
   return isObj(v) && Object.values(v).every((x) => typeof x === "string");
 }
 
-/** Valida dados vindos do servidor; devolve null se não forem uma cópia válida. */
+/**
+ * Valida dados vindos do servidor; devolve null se não forem uma cópia válida.
+ * As lápides são obrigatórias: sem elas, registos apagados poderiam voltar.
+ */
 export function parseSyncData(v: unknown): SyncData | null {
   if (!isObj(v)) return null;
-  const { medications, doseLogs, infarmedCache = [], tombstones } = v;
+  const { medications, doseLogs, infarmedCache, tombstones } = v;
   if (!Array.isArray(medications) || !medications.every(isMedication)) return null;
   if (!Array.isArray(doseLogs) || !doseLogs.every(isDoseLog)) return null;
   if (!Array.isArray(infarmedCache) || !infarmedCache.every(isInfarmedRecord)) return null;
-  const t = isObj(tombstones) ? tombstones : {};
+  if (!isObj(tombstones) || !isTombstoneMap(tombstones.medications) || !isTombstoneMap(tombstones.doseLogs)) return null;
   return {
     schema: 1,
     medications,
     doseLogs,
     infarmedCache,
-    tombstones: {
-      medications: isTombstoneMap(t.medications) ? t.medications : {},
-      doseLogs: isTombstoneMap(t.doseLogs) ? t.doseLogs : {},
-    },
+    tombstones: { medications: tombstones.medications, doseLogs: tombstones.doseLogs },
   };
 }
 
@@ -72,8 +63,7 @@ export class SyncEngine {
   constructor(
     private readonly db: PlannerDB,
     private readonly kv: KeyValue,
-    private readonly baseUrl = "",
-    private readonly fetchFn: typeof fetch = (...args) => fetch(...args),
+    private readonly io: NasIo = {},
   ) {
     this.state = { status: kv.get(K.code) ? "idle" : "off", lastSyncedAt: kv.get(K.lastSyncedAt) ?? undefined };
   }
@@ -220,38 +210,31 @@ export class SyncEngine {
     const remote = (await this.request("GET", code)) as Remote;
     const dirtyAtStart = Number(this.kv.get(K.dirty) ?? 0);
     const lastRevision = this.kv.get(K.revision);
-    const local = await this.readLocal();
     const remoteData = remote.data === null ? null : parseSyncData(remote.data);
     if (remote.data !== null && !remoteData) throw new Error("Invalid server data");
 
-    const force = this.kv.get(K.force) === "1";
-    const firstTime = lastRevision === null;
-    const localHasData = local.medications.length + local.doseLogs.length > 0;
-    const dirty = dirtyAtStart > 0 || (firstTime && localHasData);
+    const plan = planSync({
+      local: await this.readLocal(),
+      remote: remoteData,
+      force: this.kv.get(K.force) === "1",
+      pendingChanges: dirtyAtStart,
+      firstTime: lastRevision === null,
+    });
 
-    let toSave: SyncData | null = null;
-    let forcePut = false;
-    if (force) {
-      toSave = local;
-      forcePut = true;
-    } else if (!remoteData) {
-      toSave = local;
-    } else if (!dirty) {
-      if (String(remote.revision) !== lastRevision) await this.applyLocal(remoteData);
+    if (plan.kind === "pull") {
+      if (String(remote.revision) !== lastRevision) await this.applyLocal(plan.data);
       this.kv.set(K.revision, String(remote.revision));
       return true;
-    } else {
-      toSave = mergeSyncData(local, remoteData);
     }
 
     try {
-      const saved = (await this.request("PUT", code, { baseRevision: remote.revision, force: forcePut, data: toSave })) as Remote;
+      const saved = (await this.request("PUT", code, { baseRevision: remote.revision, force: plan.force, data: plan.data })) as Remote;
       this.kv.set(K.revision, String(saved.revision));
     } catch (e) {
       if (e instanceof HttpError && e.status === 409) return false;
       throw e;
     }
-    await this.applyLocal(toSave);
+    await this.applyLocal(plan.data);
     this.kv.remove(K.force);
     // Só limpa as alterações pendentes se não houve outras durante a sincronização.
     if (Number(this.kv.get(K.dirty) ?? 0) === dirtyAtStart) this.kv.set(K.dirty, "0");
@@ -286,19 +269,7 @@ export class SyncEngine {
   }
 
   private async request(method: "GET" | "PUT", code: string, body?: unknown): Promise<unknown> {
-    let res: Response;
-    try {
-      res = await this.fetchFn(`${this.baseUrl}/api/data`, {
-        method,
-        headers: { Authorization: `Bearer ${code}`, ...(body ? { "Content-Type": "application/json" } : {}) },
-        body: body ? JSON.stringify(body) : undefined,
-        cache: "no-store",
-      });
-    } catch {
-      throw new HttpError(0);
-    }
-    if (!res.ok) throw new HttpError(res.status);
-    return res.json();
+    return (await nasRequest(code, method, "/api/data", body, this.io)).json();
   }
 
   private errorStatus(e: unknown): SyncStatus {
