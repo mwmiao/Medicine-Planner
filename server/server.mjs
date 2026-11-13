@@ -24,6 +24,7 @@ const MAX_BODY = 5 * 1024 * 1024;
 const DATA_FILE = join(DATA_DIR, "medicine-planner.json");
 const HISTORY_DIR = join(DATA_DIR, "history");
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
+const TRUST_PROXY = process.env.TRUST_PROXY === "1";
 const INTERNAL_CRON = process.env.INTERNAL_CRON !== "off";
 
 const MIME = {
@@ -90,6 +91,15 @@ function checkCode(req) {
   const header = req.headers.authorization ?? "";
   const given = header.startsWith("Bearer ") ? header.slice(7) : "";
   return given.length > 0 && timingSafeEqual(digest(given), digest(SYNC_CODE));
+}
+
+/** Endereço do cliente: com TRUST_PROXY, o último valor de X-Forwarded-For (o do proxy de confiança). */
+function clientAddress(req) {
+  if (TRUST_PROXY) {
+    const forwarded = String(req.headers["x-forwarded-for"] ?? "").split(",").pop()?.trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket.remoteAddress ?? "?";
 }
 
 function blocked(ip) {
@@ -174,7 +184,7 @@ async function handlePush(req, res, url) {
 
 /** Autenticação comum: código de sincronização, com bloqueio após muitas tentativas erradas. */
 function authorize(req, res) {
-  const ip = req.socket.remoteAddress ?? "?";
+  const ip = clientAddress(req);
   if (blocked(ip)) {
     sendJson(res, 429, { error: "too_many_attempts" });
     return false;

@@ -158,3 +158,42 @@ describe("sincronização entre Safari e a app do ecrã principal", () => {
     expect(await names(fresh)).toEqual(["Ben-u-ron"]);
   }, 20_000);
 });
+
+describe("bloqueio por endereço atrás de proxy", () => {
+  async function wrong(base: string, xff?: string) {
+    return (await fetch(`${base}/api/data`, { headers: { Authorization: "Bearer wrong", ...(xff ? { "X-Forwarded-For": xff } : {}) } })).status;
+  }
+
+  it("com TRUST_PROXY, um cliente bloqueado não bloqueia os outros", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, TRUST_PROXY: "1" });
+    try {
+      for (let i = 0; i < 10; i++) expect(await wrong(s.base, "203.0.113.5")).toBe(401);
+      expect(await wrong(s.base, "203.0.113.5")).toBe(429);
+      const ok = await fetch(`${s.base}/api/data`, { headers: { Authorization: `Bearer ${CODE}`, "X-Forwarded-For": "198.51.100.7" } });
+      expect(ok.status).toBe(200);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("só confia no último valor de X-Forwarded-For (o do proxy)", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, TRUST_PROXY: "1" });
+    try {
+      // O atacante muda o início da lista a cada pedido; o último valor é o mesmo.
+      for (let i = 0; i < 10; i++) await wrong(s.base, `10.0.0.${i}, 203.0.113.9`);
+      expect(await wrong(s.base, "10.0.0.99, 203.0.113.9")).toBe(429);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("sem TRUST_PROXY, o cabeçalho é ignorado (não dá para fugir ao bloqueio)", async () => {
+    const s = await startServer({ SYNC_CODE: CODE });
+    try {
+      for (let i = 0; i < 10; i++) await wrong(s.base, `10.0.0.${i}`);
+      expect(await wrong(s.base, "10.0.0.200")).toBe(429);
+    } finally {
+      s.proc.kill();
+    }
+  });
+});

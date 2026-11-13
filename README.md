@@ -82,7 +82,7 @@ Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando
 
 ## Segurança
 
-- A sincronização usa um único **código de sincronização** (`SYNC_CODE`), sem contas. O servidor bloqueia após 10 códigos errados em 15 minutos.
+- A sincronização usa um único **código de sincronização** (`SYNC_CODE`), sem contas. O servidor bloqueia um endereço após 10 códigos errados em 15 minutos; atrás de um proxy reverso, só passa a ser por cliente (em vez de bloquear todos) com `TRUST_PROXY=1`.
 - O código viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
 - A fotografia da caixa **não é guardada**: fica só na memória durante a leitura.
 - Para expor o NAS à internet, prefira um túnel ou proxy com controlo de acesso (ex.: Cloudflare Tunnel com Cloudflare Access).
@@ -146,6 +146,7 @@ Variáveis do contentor:
 | `VAPID_SUBJECT` | Contacto `mailto:`/`https:` enviado ao serviço de push (por omissão, o repositório no GitHub) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Opcional; sem elas, são geradas uma vez e guardadas em `/data/push.json` |
 | `CRON_SECRET` | Opcional; permite chamar `POST /api/cron/tick` de fora com `Authorization: Bearer …` |
+| `TRUST_PROXY=1` | Opcional; atrás de um proxy reverso, conta as tentativas erradas por cliente (cabeçalho `X-Forwarded-For`) em vez de bloquear todos. Só ative se o proxy for o único caminho até ao contentor |
 | `INTERNAL_CRON=off` | Desliga o "cron" interno (se usar um externo) |
 
 **Rede:** o NAS precisa de acesso à internet **de saída** (para o serviço de push da Apple). O telemóvel precisa de chegar ao NAS por **HTTPS** para ativar os lembretes e sincronizar; o envio dos lembretes não precisa que o telemóvel esteja em casa.
