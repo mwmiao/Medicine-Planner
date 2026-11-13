@@ -125,3 +125,13 @@ export async function reminderStatus(): Promise<{ subscriptions: number; nextAt:
     return null;
   }
 }
+
+/** Se os lembretes estão ligados mas o NAS não tem nenhuma subscrição, regista a deste telemóvel outra vez. */
+export async function repairSubscription(locale: Locale): Promise<void> {
+  if (!remindersEnabled() || !getSync().connected) return;
+  const status = await reminderStatus();
+  if (!status || status.subscriptions > 0) return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (sub) await api("POST", "/api/push/subscription", { subscription: sub.toJSON(), locale, timezone: timezone() });
+}
