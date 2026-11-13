@@ -139,9 +139,10 @@ export class SyncEngine {
 
   /** Depois de importar ou apagar tudo: a cópia deste telemóvel passa a ser a verdade. */
   markReplaceAll(): void {
-    this.kv.set(K.force, "1");
     this.kv.set(K.tombstones, JSON.stringify(emptyTombstones()));
-    if (this.connected) this.schedule(500);
+    if (!this.connected) return; // sem NAS ainda: na primeira ligação os dados juntam-se
+    this.kv.set(K.force, "1");
+    this.schedule(500);
   }
 
   // ---------- ligação ----------
@@ -155,6 +156,7 @@ export class SyncEngine {
     }
     this.kv.set(K.code, code.trim());
     this.kv.remove(K.revision); // primeira vez: junta em vez de substituir
+    this.kv.remove(K.force);
     await this.syncNow();
     return this.state.status;
   }
