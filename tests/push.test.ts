@@ -91,6 +91,18 @@ describe("lembretes Web Push no NAS", () => {
     expect((await svc.sendTest({})).status).toBe(409);
   });
 
+  it("não apaga a subscrição por um 403 (pode ser só configuração VAPID); 404/410 sim", async () => {
+    for (const code of [400, 403, 500]) {
+      const { svc } = service([], code);
+      await svc.subscribe({ subscription: fakeSubscription("https://push.example/keep") });
+      expect((await svc.sendTest({ locale: "pt" })).body).toEqual({ sent: 0, removed: 0 });
+      expect((await svc.status()).subscriptions).toBe(1);
+    }
+    const { svc } = service([], 404);
+    await svc.subscribe({ subscription: fakeSubscription("https://push.example/gone") });
+    expect((await svc.sendTest({})).body).toEqual({ sent: 0, removed: 1 });
+  });
+
   it("recusa listas de lembretes inválidas", async () => {
     const { svc } = service();
     expect((await svc.setJobs({ jobs: [{ id: "x" }] })).status).toBe(400);

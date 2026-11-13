@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect } from "react";
 import { db } from "@/lib/db";
 import { useMessages } from "@/lib/i18n";
-import { remindersEnabled, uploadReminderJobs } from "@/lib/push";
+import { remindersEnabled, repairSubscription, uploadReminderJobs } from "@/lib/push";
 
 /**
  * Sempre que os medicamentos, as tomas ou o idioma mudam, renova no NAS a
@@ -22,6 +22,10 @@ export function ReminderJobsSync() {
     const id = setTimeout(() => void uploadReminderJobs(locale, m).catch(() => undefined), 2000);
     return () => clearTimeout(id);
   }, [version, locale, m]);
+
+  useEffect(() => {
+    void repairSubscription(locale).catch(() => undefined);
+  }, [locale]);
 
   return null;
 }

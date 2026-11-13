@@ -205,8 +205,9 @@ export class PushService {
         sent++;
       } catch (e) {
         const code = e && typeof e === "object" && "statusCode" in e ? e.statusCode : 0;
-        // 404/410: subscrição expirada ou cancelada. 400/403 com o endpoint: inválida.
-        if (code === 404 || code === 410 || code === 400 || code === 403) dead.add(sub.endpoint);
+        // 404/410: subscrição expirada ou cancelada. Outros erros (ex.: 403 por chaves VAPID erradas)
+        // não apagam a subscrição: são registados e tentados outra vez.
+        if (code === 404 || code === 410) dead.add(sub.endpoint);
         else console.error("push failed", code, e instanceof Error ? e.message : e);
       }
     }
