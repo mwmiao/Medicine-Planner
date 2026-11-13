@@ -224,7 +224,13 @@ export class SyncEngine {
     });
 
     if (plan.kind === "pull") {
-      if (String(remote.revision) !== lastRevision) await this.applyLocal(plan.data);
+      if (String(remote.revision) !== lastRevision) {
+        // Alterado entretanto: não adota o NAS agora; a próxima tentativa junta tudo.
+        if (!(await this.applyLocal(plan.data, dirtyAtStart))) {
+          this.again = true;
+          return true;
+        }
+      }
       this.kv.set(K.revision, String(remote.revision));
       return true;
     }
@@ -236,8 +242,12 @@ export class SyncEngine {
       if (e instanceof HttpError && e.status === 409) return false;
       throw e;
     }
-    await this.applyLocal(plan.data);
+    const applied = await this.applyLocal(plan.data, dirtyAtStart);
     this.kv.remove(K.force);
+    if (!applied) {
+      this.again = true; // há alterações novas: a próxima sincronização junta-as e envia-as
+      return true;
+    }
     // Só limpa as alterações pendentes se não houve outras durante a sincronização.
     if (Number(this.kv.get(K.dirty) ?? 0) === dirtyAtStart) this.kv.set(K.dirty, "0");
     else this.again = true;
@@ -253,21 +263,28 @@ export class SyncEngine {
     return { schema: 1, medications, doseLogs, infarmedCache, tombstones: this.tombstones() };
   }
 
-  /** Substitui os dados do telemóvel pela versão juntada (sem registar como alteração local). */
-  private async applyLocal(data: SyncData): Promise<void> {
+  /**
+   * Substitui os dados do telemóvel pela versão juntada (sem registar como alteração local).
+   * Se o utilizador alterou algo desde o início desta sincronização, não substitui nada
+   * (devolve false): a próxima sincronização junta essa alteração e envia-a.
+   */
+  private async applyLocal(data: SyncData, dirtyAtStart: number): Promise<boolean> {
     const db = this.db;
     this.applying = true;
     try {
-      await db.transaction("rw", db.medications, db.doseLogs, db.infarmedCache, async () => {
+      return await db.transaction("rw", db.medications, db.doseLogs, db.infarmedCache, async () => {
+        // Dentro da transação nenhuma outra escrita se pode intercalar.
+        if (Number(this.kv.get(K.dirty) ?? 0) !== dirtyAtStart) return false;
         await Promise.all([db.medications.clear(), db.doseLogs.clear(), db.infarmedCache.clear()]);
         await db.medications.bulkPut(data.medications);
         await db.doseLogs.bulkPut(data.doseLogs);
         await db.infarmedCache.bulkPut(data.infarmedCache);
+        this.kv.set(K.tombstones, JSON.stringify(data.tombstones));
+        return true;
       });
     } finally {
       this.applying = false;
     }
-    this.kv.set(K.tombstones, JSON.stringify(data.tombstones));
   }
 
   private async request(method: "GET" | "PUT", code: string, body?: unknown): Promise<unknown> {
