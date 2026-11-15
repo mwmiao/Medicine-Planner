@@ -100,8 +100,10 @@ export const pt = {
     deleteYes: "Sim, apagar",
     deleted: "Medicamento apagado.",
     saved: "Medicamento guardado.",
+    checkDose: "Atenção: a dose está em mg, mas este medicamento é líquido (a caixa indica uma concentração). Confirme com a receita do médico quantos ml deve tomar.",
   },
   form: {
+    checkDose: "Atenção: a dose está em mg, mas este medicamento é líquido (a caixa indica uma concentração). Confirme com a receita do médico quantos ml deve tomar.",
     titleNew: "Novo medicamento",
     titleEdit: "Editar medicamento",
     name: "Nome do medicamento",

@@ -106,7 +106,14 @@ export function unitFromForm(form?: string): Unit | undefined {
   return undefined;
 }
 
-const COUNT_LADDER = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
+/** Dose em mg num líquido ou com concentração "X mg/Y ml": a "dose" provavelmente é a força da caixa, não a quantidade a tomar. */
+export function doseUnitLooksWrong(med: Pick<MedicationInput, "unit" | "dosage" | "pharmaceuticalForm">): boolean {
+  if (med.unit !== "mg") return false;
+  const concentration = /\d\s*(mg|g|mcg|µg)\s*\/\s*\d*[.,]?\d*\s*(ml|mL)/i.test(med.dosage ?? "");
+  return concentration || unitFromForm(med.pharmaceuticalForm) === "ml";
+}
+
+const COUNT_LADDER =[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
 const LADDERS: Record<Unit, number[]> = {
   tablet: COUNT_LADDER,
   capsule: COUNT_LADDER,

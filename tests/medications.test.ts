@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markTaken } from "@/lib/doses";
-import { createMedication, deleteMedication, MedicationValidationError, stepQuantity, unitFromForm, updateMedication, validateMedication } from "@/lib/medications";
+import { createMedication, deleteMedication, MedicationValidationError, doseUnitLooksWrong, stepQuantity, unitFromForm, updateMedication, validateMedication } from "@/lib/medications";
 import { input, testDb } from "./helpers";
 
 describe("criar e editar medicamentos", () => {
@@ -81,5 +81,23 @@ describe("botões + e − da quantidade", () => {
   it("um valor inválido volta a um valor normal (≥ 1)", () => {
     expect(stepQuantity(Number.NaN, "tablet", 1)).toBe(1);
     expect(stepQuantity(0, "ml", -1)).toBe(1);
+  });
+});
+
+describe("doseUnitLooksWrong", () => {
+  it("avisa com unidade mg e concentração na força", () => {
+    expect(doseUnitLooksWrong({ unit: "mg", dosage: "750 mg/5 ml" })).toBe(true);
+  });
+  it("avisa com unidade mg e forma líquida", () => {
+    expect(doseUnitLooksWrong({ unit: "mg", dosage: "", pharmaceuticalForm: "Suspensão oral" })).toBe(true);
+  });
+  it("não avisa com unidade ml", () => {
+    expect(doseUnitLooksWrong({ unit: "ml", dosage: "750 mg/5 ml" })).toBe(false);
+  });
+  it("não avisa com comprimido em mg", () => {
+    expect(doseUnitLooksWrong({ unit: "mg", dosage: "500 mg", pharmaceuticalForm: "Comprimido" })).toBe(false);
+  });
+  it("não avisa com unidade comprimido", () => {
+    expect(doseUnitLooksWrong({ unit: "tablet", dosage: "500 mg" })).toBe(false);
   });
 });
