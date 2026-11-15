@@ -17,6 +17,7 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [006](006-settings-family-section.md) | Settings: her controls first, family/technical options collapsed | P2 | M | — | DONE (reviewed 2026-11-15; commit fabf0d7 on advisor/006-settings-family-section, not merged; no browser check of collapse, #family auto-open, delete dialog or standalone hiding) |
 | [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, not merged; on-screen layout/toast/undo flow not checked in a browser) |
 | [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, not merged; real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
+| [009](009-auto-connect-nas.md) | Opt-in auto-connect to the NAS (`AUTO_CONNECT=1`); remove the Today connect button | P1 | M | — | TODO |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
