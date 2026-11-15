@@ -18,9 +18,9 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, not merged; on-screen layout/toast/undo flow not checked in a browser) |
 | [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, not merged; real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
 | [009](009-auto-connect-nas.md) | Opt-in auto-connect to the NAS (`AUTO_CONNECT=1`); remove the Today connect button | P1 | M | — | DONE (reviewed 2026-11-15; commit 830077b on advisor/009-auto-connect-nas, not merged; no iPhone/browser check of silent connection) |
-| [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | TODO |
-| [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | TODO |
-| [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | TODO |
+| [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | DONE (reviewed 2026-11-15; commit c4b5af5 on advisor/010-leaflet-chinese, stacked on 012, not merged; no real Anthropic call and no browser check) |
+| [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | DONE (reviewed 2026-11-15; commit bba4182 on advisor/011-box-photo-claude, stacked on 010 and 012, not merged; no real Anthropic call, no browser/iPhone check) |
+| [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, not merged; UI not checked in a browser) |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
