@@ -5,11 +5,11 @@ import { PREFERENCES_BOOT_SCRIPT } from "@/lib/boot";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Planeador de Medicação · 用药小助手",
+  title: "用药小助手 · Planeador de Medicação",
   description: "Lembretes simples para tomar os medicamentos a horas. 按时吃药的简单提醒。",
   manifest: "/manifest.webmanifest",
-  applicationName: "Planeador",
-  appleWebApp: { capable: true, title: "Planeador", statusBarStyle: "default" },
+  applicationName: "用药小助手",
+  appleWebApp: { capable: true, title: "用药小助手", statusBarStyle: "default" },
   icons: {
     icon: [
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

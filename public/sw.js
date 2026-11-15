@@ -109,7 +109,7 @@ self.addEventListener("push", (event) => {
   }
   const url = typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/";
   event.waitUntil(
-    self.registration.showNotification(data.title || "💊 Planeador", {
+    self.registration.showNotification(data.title || "💊 用药小助手", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
