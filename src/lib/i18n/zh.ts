@@ -99,6 +99,8 @@ export const zh: Messages = {
     pharmaceuticalForm: "剂型",
     unit: "单位",
     quantity: "每次用量",
+    qtyLess: "减少",
+    qtyMore: "增加",
     frequency: "多久吃一次？",
     freqOnce: "每天 1 次",
     freqTwice: "每天 2 次",
@@ -158,6 +160,7 @@ export const zh: Messages = {
     selectedNote: "资料已经填好。请检查，有错的地方请改正。",
   },
   scan: {
+    filledNote: "资料已根据药盒照片自动填好，请快速核对一下。",
     button: "拍药盒",
     title: "给药盒拍照",
     tipsTitle: "拍照小提示",
