@@ -25,8 +25,17 @@ function subscribe(cb: () => void): () => void {
   };
 }
 
+/** Sem escolha guardada: chinês se o primeiro idioma do telemóvel for chinês, senão português. */
+export function localeFromLanguages(languages: readonly string[]): Locale {
+  const first = languages.find((l) => l);
+  return first && first.toLowerCase().startsWith("zh") ? "zh" : "pt";
+}
+
 export function getLocale(): Locale {
-  return read(KEYS.locale) === "zh" ? "zh" : "pt";
+  const stored = read(KEYS.locale);
+  if (stored === "zh" || stored === "pt") return stored;
+  if (typeof navigator === "undefined") return "pt";
+  return localeFromLanguages(navigator.languages?.length ? navigator.languages : [navigator.language]);
 }
 
 export function getTextSize(): TextSize {
