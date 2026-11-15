@@ -87,6 +87,7 @@ export const pt = {
   },
   meds: {
     title: "Medicamentos",
+    chineseName: "Nome em chinês",
     empty: "Ainda não adicionou nenhum medicamento.",
     add: "Adicionar medicamento",
     nextDose: "Próxima toma",

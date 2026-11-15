@@ -40,6 +40,7 @@ export type MedicalInfo = {
   original?: Partial<Record<MedicalInfoSection, string[]>>;
   sourceUrl?: string;
   sourceName?: string;
+  nameZh?: string; // nome genérico em chinês (da etiqueta pública)
   originalLanguage?: "pt" | "en";
 };
 

@@ -81,6 +81,7 @@ export const zh: Messages = {
   },
   meds: {
     title: "我的药",
+    chineseName: "中文名",
     empty: "您还没有添加任何药品。",
     add: "添加药品",
     nextDose: "下次服药",
