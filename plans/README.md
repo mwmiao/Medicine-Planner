@@ -21,6 +21,7 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | DONE (reviewed 2026-11-15; commit c4b5af5 on advisor/010-leaflet-chinese, stacked on 012, not merged; no real Anthropic call and no browser check) |
 | [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | DONE (reviewed 2026-11-15; commit bba4182 on advisor/011-box-photo-claude, stacked on 010 and 012, not merged; no real Anthropic call, no browser/iPhone check) |
 | [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, not merged; UI not checked in a browser) |
+| [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | TODO |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
@@ -58,6 +59,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - Rewording the Chinese copy: reviewed, already clear and polite.
 - Error toasts disappearing after 3.5 s (`src/components/Toast.tsx`): low value, not planned.
 
+- indice.eu as an instruction source (owner's suggestion): `robots.txt` allows crawling but its Conditions of Use (Art. 4.3, 6.2-6.3) forbid reproducing/extracting its content without written authorisation from Tupam Editores. Not used; the owner may ask them for permission.
 - Scraping or auto-fetching INFOMED (leaflets/records): `extranet.infarmed.pt/robots.txt` is `Disallow: /`, the site is a stateful JSF form with no API, and dados.gov.pt has no INFARMED medicine dataset. Do not build on it.
 - EMA ePI API as the instruction source: public and keyless, but only covers EU-centrally-authorised products in its pilot (most generics are missing).
 - Unofficial third-party leaflet sites (e.g. medikamio.com) and Chinese NMPA leaflets: terms unchecked / different products and doses.
