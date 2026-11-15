@@ -23,7 +23,7 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, not merged; UI not checked in a browser) |
 | [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | DONE (reviewed 2026-11-15, 2 revision rounds; commit 8f2ce0a on advisor/014-auto-instructions, not merged; verified against live openFDA data with Claude faked; no real Anthropic call, no browser/iPhone check) |
 | [015](015-least-typing-add-medicine.md) | Box photo reads straight into the form (no preview/review taps when confident); − / + pill stepper; unit from form | P1 | M | — | DONE (reviewed 2026-11-15; commit 012ae84 on advisor/015-least-typing, not merged; layout not checked in a browser, AI scan path needs the owner's real key) |
-| [016](016-ai-working-indicator.md) | "Claude AI is working" indicator (moving bar + timer) for box reading, instruction lookup and leaflet translation | P2 | S | — | TODO |
+| [016](016-ai-working-indicator.md) | "Claude AI is working" indicator (moving bar + timer) for box reading, instruction lookup and leaflet translation | P2 | S | — | DONE (reviewed 2026-11-15; commit ec8185a on advisor/016-ai-working, not merged; visual not checked on a phone) |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
