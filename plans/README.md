@@ -13,6 +13,13 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [003](003-lockout-per-real-client-ip.md) | Lockout per real client IP behind a proxy | P2 | S | — | DONE (reviewed 2026-11-13; commit 2a8f89f on advisor/003-lockout-client-ip, not merged) |
 | [004](004-push-subscription-survives-403.md) | Push 403 doesn't delete the subscription; app repairs it | P2 | S–M | — | DONE (reviewed 2026-11-13; commit 4d2441f on advisor/004-push-403, not merged; phone-side repair has no automated test and the iPhone check was not run) |
 
+| [005](005-default-language-from-phone.md) | App starts in Chinese when the phone's language is Chinese | P1 | S | — | DONE (reviewed 2026-11-15; commit 2f4efcc on advisor/005-default-language, not merged; browser check with a Chinese-language browser not run) |
+| [006](006-settings-family-section.md) | Settings: her controls first, family/technical options collapsed | P2 | M | — | DONE (reviewed 2026-11-15; commit fabf0d7 on advisor/006-settings-family-section, not merged; no browser check of collapse, #family auto-open, delete dialog or standalone hiding) |
+| [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, not merged; on-screen layout/toast/undo flow not checked in a browser) |
+| [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, not merged; real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
+
+Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
+
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
 ## Dependency notes
@@ -21,15 +28,28 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - 003 and 004 are independent of each other and of 001/002 (they touch `server/` and `src/lib/push.ts`).
 - Audit finding 5 (missing tests for mid-sync edits and connect-after-replace-all) is delivered inside plans 001 and 002 rather than as a separate plan, so each fix lands with the test that proves it.
 
+- 005–008 are independent of each other and of 001–004. 006, 007 and 008 each add keys to `src/lib/i18n/pt.ts` and `zh.ts`; run them one at a time (not in parallel) to avoid merge conflicts.
+- 006 changes the `/settings/` links on the Today page to `/settings/#family`; 007 edits the same file (`src/app/page.tsx`) elsewhere.
+
+## Open decisions for the owner
+
+- Plan 008 assumes a 15-minute gap and one follow-up per dose (`FOLLOW_UP_MINUTES`).
+- Not planned, needs a product call: default text size "大" for new installs; a Chinese or bilingual home-screen icon name (`appleWebApp.title` / manifest `short_name` are "Planeador"; applies only after re-adding the icon); a setup checklist card for the family.
+
 ## Verification baseline
 
-`npm test` (Vitest, 66 tests at planning time) and `npm run typecheck` both pass on `60b8a06`. There is no lint script.
+`npm test` (Vitest, 66 tests at planning time; 74 tests in 13 files on `34ffff1`) and `npm run typecheck` both pass. There is no lint script.
 
 ## Findings considered and rejected
 
 - Constant-time comparison for `CRON_SECRET` (`server/server.mjs`): minor timing leak on a LAN service behind a long random secret.
 - 5,000-job cap in push (`server/push.mjs`): about 1,200 jobs for a realistic 10-medicine, 4-times-a-day schedule over 30 days.
 - Tombstones now required in `parseSyncData`: verified against commit `680ac7b`; the engine has always written `tombstones` and `infarmedCache`, so existing NAS data still parses.
+
+- Removing the "have you taken this?" confirmation on Today: one extra tap, but it protects against a mis-tap recording a dose she did not take.
+- Syncing language/text size to the NAS: unnecessary once plan 005 lands, and it would touch the sync engine fixed in 001/002.
+- Rewording the Chinese copy: reviewed, already clear and polite.
+- Error toasts disappearing after 3.5 s (`src/components/Toast.tsx`): low value, not planned.
 
 ## Not planned (optional, low value)
 
