@@ -105,6 +105,8 @@ export const pt = {
     pharmaceuticalForm: "Forma farmacêutica",
     unit: "Unidade",
     quantity: "Quantidade por toma",
+    qtyLess: "Menos",
+    qtyMore: "Mais",
     frequency: "Com que frequência?",
     freqOnce: "1 vez por dia",
     freqTwice: "2 vezes por dia",
@@ -164,6 +166,7 @@ export const pt = {
     selectedNote: "Os campos foram preenchidos. Confirme e corrija o que for preciso.",
   },
   scan: {
+    filledNote: "Dados preenchidos a partir da fotografia da caixa. Confirme rapidamente.",
     button: "Fotografar caixa",
     title: "Fotografar a caixa",
     tipsTitle: "Dicas para uma boa fotografia",

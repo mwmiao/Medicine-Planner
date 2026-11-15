@@ -6,7 +6,7 @@ import { toDateKey } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { BOX_COLORS, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
-import { validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
+import { stepQuantity, unitFromForm, validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
 import { UNITS, type Frequency, type Medication, type OcrExtract, type Unit } from "@/lib/types";
 import { BoxScanner } from "./BoxScanner";
 import { InfarmedPanel } from "./InfarmedPanel";
@@ -69,7 +69,7 @@ export function MedicationForm({
       dosage: s.dosage || ocr.strength || "",
       pharmaceuticalForm: s.pharmaceuticalForm || ocr.form,
       ean: ocr.ean ?? s.ean,
-      unit: s.unit === "tablet" && ocr.form && /c[áa]psula/i.test(ocr.form) ? "capsule" : s.unit,
+      unit: s.unit === "tablet" ? (unitFromForm(ocr.form) ?? s.unit) : s.unit,
     }));
   };
 
@@ -139,6 +139,8 @@ export function MedicationForm({
         </Notice>
       ) : null}
 
+      {v.ocr ? <Notice>{m.scan.filledNote}</Notice> : null}
+
       {showInfarmed ? (
         <Card className="ring-2 ring-primary">
           <div className="mb-3 flex items-center justify-between">
@@ -188,18 +190,29 @@ export function MedicationForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Field label={m.form.quantity} htmlFor="qty" error={err("quantity")}>
-          <TextInput
-            id="qty"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="any"
-            value={Number.isFinite(v.quantityPerDose) ? v.quantityPerDose : ""}
-            onChange={(e) => set("quantityPerDose", e.target.value === "" ? Number.NaN : Number(e.target.value.replace(",", ".")))}
-            invalid={!!errors.quantity}
-          />
+          <div id="qty" role="group" aria-label={m.form.quantity} className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label={m.form.qtyLess}
+              onClick={() => set("quantityPerDose", stepQuantity(v.quantityPerDose, v.unit, -1))}
+              className="min-h-16 min-w-16 rounded-2xl border-2 border-primary bg-white text-4xl font-bold text-primary active:bg-primary-soft"
+            >
+              −
+            </button>
+            <output aria-live="polite" className="min-w-0 flex-1 text-center text-2xl font-bold">
+              {Number.isFinite(v.quantityPerDose) ? m.units.count(v.unit, v.quantityPerDose) : "—"}
+            </output>
+            <button
+              type="button"
+              aria-label={m.form.qtyMore}
+              onClick={() => set("quantityPerDose", stepQuantity(v.quantityPerDose, v.unit, 1))}
+              className="min-h-16 min-w-16 rounded-2xl border-2 border-primary bg-white text-4xl font-bold text-primary active:bg-primary-soft"
+            >
+              +
+            </button>
+          </div>
         </Field>
         <Field label={m.form.unit} htmlFor="unit">
           <Select id="unit" value={v.unit} onChange={(e) => set("unit", e.target.value as Unit)}>

@@ -1,7 +1,7 @@
 import { isValidTime } from "./dates";
 import { db, type PlannerDB } from "./db";
 import { newId } from "./id";
-import type { Medication } from "./types";
+import type { Medication, Unit } from "./types";
 
 export type MedicationInput = Omit<Medication, "id" | "createdAt" | "updatedAt">;
 
@@ -92,6 +92,36 @@ export function emptyMedication(): MedicationInput {
     frequency: { type: "daily" },
     times: ["08:00"],
   };
+}
+
+/** Unidade provável a partir da forma farmacêutica; `undefined` se não for claro. */
+export function unitFromForm(form?: string): Unit | undefined {
+  const f = (form ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (!f.trim()) return undefined;
+  if (/capsul/.test(f)) return "capsule";
+  if (/injet|inject|pomada|creme|gel|supositor|colirio|pó|po para/.test(f)) return undefined;
+  if (/comprimid|tablet|drag/.test(f)) return "tablet";
+  if (/gota|drop/.test(f)) return "drop";
+  if (/xarope|solu|suspens|elixir|syrup|liquid/.test(f)) return "ml";
+  return undefined;
+}
+
+const COUNT_LADDER = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
+const LADDERS: Record<Unit, number[]> = {
+  tablet: COUNT_LADDER,
+  capsule: COUNT_LADDER,
+  other: COUNT_LADDER,
+  ml: [1, 2.5, 5, 7.5, 10, 15, 20],
+  drop: [1, 2, 3, 4, 5, 10, 15, 20],
+  mg: [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000],
+};
+
+/** Passo do botão + (dir = 1) ou − (dir = -1) numa escada de quantidades habituais. */
+export function stepQuantity(value: number, unit: Unit, dir: 1 | -1): number {
+  const ladder = LADDERS[unit];
+  if (!Number.isFinite(value) || value <= 0) return ladder.find((x) => x >= 1) ?? ladder[0];
+  const next = dir === 1 ? ladder.find((x) => x > value) : [...ladder].reverse().find((x) => x < value);
+  return next ?? value;
 }
 
 export function toInput(med: Medication): MedicationInput {

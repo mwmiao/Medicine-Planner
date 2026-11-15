@@ -132,6 +132,11 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
           if (ai.legible) {
             const f = ai.fields;
             const next: ParsedBox = { ...f, ean: code?.ean ?? (f.ean && validGtin(f.ean) ? f.ean : undefined), expiry: f.expiry ?? code?.expiry };
+            // Tudo lido com confiança e com nome: salta o ecrã de revisão (o formulário mostra um aviso).
+            if (ai.uncertain.length === 0 && next.name?.trim()) {
+              finish(next, "");
+              return;
+            }
             setBarcode(code);
             setRaw("");
             setFields(next);
@@ -180,6 +185,11 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     setError(null);
     setSource(from);
     setPhoto({ blob, url: URL.createObjectURL(blob) });
+    // Com a leitura por IA pronta, começa logo a ler: sem toque extra.
+    if (aiReady) {
+      void read(blob);
+      return;
+    }
     setPhase("preview");
   };
 
@@ -254,22 +264,24 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     else (source === "gallery" ? galleryRef : cameraFileRef).current?.click();
   };
 
-  const confirm = () => {
+  const finish = (f: ParsedBox, rawText: string) => {
     const clean = (v?: string) => v?.trim() || undefined;
     onExtract({
-      rawText: raw,
-      name: clean(fields.name),
-      activeSubstance: clean(fields.activeSubstance),
-      strength: clean(fields.strength),
-      form: clean(fields.form),
-      packCount: clean(fields.packCount),
-      expiry: clean(fields.expiry),
-      manufacturer: clean(fields.manufacturer),
-      ean: clean(fields.ean),
+      rawText,
+      name: clean(f.name),
+      activeSubstance: clean(f.activeSubstance),
+      strength: clean(f.strength),
+      form: clean(f.form),
+      packCount: clean(f.packCount),
+      expiry: clean(f.expiry),
+      manufacturer: clean(f.manufacturer),
+      ean: clean(f.ean),
       capturedAt: new Date().toISOString(),
     });
     clearPhoto();
   };
+
+  const confirm = () => finish(fields, raw);
 
   const close = () => {
     stopCamera();

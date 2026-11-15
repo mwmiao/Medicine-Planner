@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markTaken } from "@/lib/doses";
-import { createMedication, deleteMedication, MedicationValidationError, updateMedication, validateMedication } from "@/lib/medications";
+import { createMedication, deleteMedication, MedicationValidationError, stepQuantity, unitFromForm, updateMedication, validateMedication } from "@/lib/medications";
 import { input, testDb } from "./helpers";
 
 describe("criar e editar medicamentos", () => {
@@ -39,5 +39,47 @@ describe("criar e editar medicamentos", () => {
     await deleteMedication(med.id, db);
     expect(await db.medications.count()).toBe(0);
     expect(await db.doseLogs.count()).toBe(0);
+  });
+});
+
+describe("unidade a partir da forma farmacêutica", () => {
+  it("reconhece as formas mais comuns, em português e inglês", () => {
+    expect(unitFromForm("Comprimido revestido")).toBe("tablet");
+    expect(unitFromForm("tablet")).toBe("tablet");
+    expect(unitFromForm("Cápsula")).toBe("capsule");
+    expect(unitFromForm("Capsulas moles")).toBe("capsule");
+    expect(unitFromForm("Suspensão oral")).toBe("ml");
+    expect(unitFromForm("Xarope")).toBe("ml");
+    expect(unitFromForm("Solução oral")).toBe("ml");
+    expect(unitFromForm("Gotas orais")).toBe("drop");
+  });
+  it("não adivinha quando não sabe", () => {
+    expect(unitFromForm(undefined)).toBeUndefined();
+    expect(unitFromForm("")).toBeUndefined();
+    expect(unitFromForm("Pomada")).toBeUndefined();
+    expect(unitFromForm("Solução injetável")).toBeUndefined();
+  });
+});
+
+describe("botões + e − da quantidade", () => {
+  it("sobe e desce numa escada de valores normais", () => {
+    expect(stepQuantity(1, "tablet", 1)).toBe(1.5);
+    expect(stepQuantity(1, "tablet", -1)).toBe(0.5);
+    expect(stepQuantity(2, "capsule", 1)).toBe(3);
+    expect(stepQuantity(5, "ml", 1)).toBe(7.5);
+    expect(stepQuantity(5, "ml", -1)).toBe(2.5);
+    expect(stepQuantity(3, "drop", 1)).toBe(4);
+  });
+  it("não passa dos extremos", () => {
+    expect(stepQuantity(0.5, "tablet", -1)).toBe(0.5);
+    expect(stepQuantity(10, "tablet", 1)).toBe(10);
+  });
+  it("valores fora da escada vão para o vizinho mais próximo na direção pedida", () => {
+    expect(stepQuantity(1.2, "tablet", 1)).toBe(1.5);
+    expect(stepQuantity(1.2, "tablet", -1)).toBe(1);
+  });
+  it("um valor inválido volta a um valor normal (≥ 1)", () => {
+    expect(stepQuantity(Number.NaN, "tablet", 1)).toBe(1);
+    expect(stepQuantity(0, "ml", -1)).toBe(1);
   });
 });
