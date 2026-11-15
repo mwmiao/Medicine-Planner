@@ -13,7 +13,7 @@ import { describeFrequency, formatDateTimeShort, formatDose, formatPharmaceutica
 import { useNow } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
 import { deleteMedication, doseUnitLooksWrong, toInput, updateMedication } from "@/lib/medications";
-import { nextDose } from "@/lib/schedule";
+import { nextDose, overdueDoseToday } from "@/lib/schedule";
 
 function MedicationDetail() {
   const { m, locale } = useMessages();
@@ -40,6 +40,7 @@ function MedicationDetail() {
     );
 
   const next = logs ? nextDose(med, logs, now) : undefined;
+  const late = logs ? overdueDoseToday(med, logs, now) : undefined;
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,6 +79,11 @@ function MedicationDetail() {
               ))}
             </dd>
           </div>
+          {late ? (
+            <div>
+              <dd className="font-bold text-amber-900">{m.meds.overdueToday(late.slice(11, 16))}</dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-base text-muted">{m.meds.nextDose}</dt>
             <dd className="font-semibold text-primary">{next ? formatDateTimeShort(next, locale) : m.meds.noNextDose}</dd>

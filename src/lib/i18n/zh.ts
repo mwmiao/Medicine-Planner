@@ -85,6 +85,7 @@ export const zh: Messages = {
     empty: "您还没有添加任何药品。",
     add: "添加药品",
     nextDose: "下次服药",
+    overdueToday: (time: string) => `今天 ${time}：还没吃`,
     noNextDose: "没有安排服药时间",
     notFound: "找不到这个药品。",
     schedule: "时间和剂量",
