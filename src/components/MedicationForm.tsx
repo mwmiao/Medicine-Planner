@@ -6,7 +6,7 @@ import { toDateKey } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { BOX_COLORS, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
-import { stepQuantity, unitFromForm, validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
+import { doseUnitLooksWrong, stepQuantity, unitFromForm, validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
 import { UNITS, type Frequency, type Medication, type OcrExtract, type Unit } from "@/lib/types";
 import { BoxScanner } from "./BoxScanner";
 import { InfarmedPanel } from "./InfarmedPanel";
@@ -223,6 +223,7 @@ export function MedicationForm({
             ))}
           </Select>
         </Field>
+        {doseUnitLooksWrong(v) ? <Notice tone="warn">{m.form.checkDose}</Notice> : null}
       </div>
 
       <Field label={m.form.dosage} hint={m.common.optional} htmlFor="dosage">

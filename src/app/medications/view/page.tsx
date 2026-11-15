@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { describeFrequency, formatDateTimeShort, formatDose } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
-import { deleteMedication, toInput, updateMedication } from "@/lib/medications";
+import { deleteMedication, doseUnitLooksWrong, toInput, updateMedication } from "@/lib/medications";
 import { nextDose } from "@/lib/schedule";
 
 function MedicationDetail() {
@@ -88,6 +88,7 @@ function MedicationDetail() {
             </div>
           ) : null}
         </dl>
+        {doseUnitLooksWrong(med) ? <div className="mt-3"><Notice tone="warn">{m.meds.checkDose}</Notice></div> : null}
       </Card>
 
       <MedicalInfoSection

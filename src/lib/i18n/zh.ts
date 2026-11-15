@@ -94,8 +94,10 @@ export const zh: Messages = {
     deleteYes: "是的，删除",
     deleted: "药品已删除。",
     saved: "药品已保存。",
+    checkDose: "请注意：每次用量写的是“毫克”，但这是液体药（药盒上的数字是浓度）。请对照医生的处方，确认每次要喝多少毫升。",
   },
   form: {
+    checkDose: "请注意：每次用量写的是“毫克”，但这是液体药（药盒上的数字是浓度）。请对照医生的处方，确认每次要喝多少毫升。",
     titleNew: "添加药品",
     titleEdit: "修改药品",
     name: "药品名称",
