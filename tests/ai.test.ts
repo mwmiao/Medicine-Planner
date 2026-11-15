@@ -135,7 +135,7 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     adverse_reactions: ["Most common: rash, nausea, diarrhea."],
     how_supplied: ["Store at 15 to 25 C. Do not freeze."],
     information_for_patients: ["Shake the bottle well before use."],
-    openfda: { generic_name: ["ATOVAQUONE"], brand_name: ["ATOVAQUONE"] },
+    openfda: { generic_name: ["ATOVAQUONE"], substance_name: ["ATOVAQUONE"], brand_name: ["ATOVAQUONE"] },
   };
   const secs = (purpose: string[]) => ({ purpose, howToTake: [], missedDose: [], sideEffects: [], warnings: [], storage: [] });
   const out = { legible: true, zh: secs(["用于预防肺孢子菌肺炎。"]), en: secs(["Prevents Pneumocystis pneumonia."]) };
@@ -249,5 +249,78 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify({ ...out, legible: false }))], fda: { results: [label] } });
     const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
     expect(r.body).toEqual({ found: false });
+  });
+
+  const combo = {
+    set_id: "22222222-2222-2222-2222-222222222222",
+    indications_and_usage: ["COMBO INDICATION TEXT"],
+    dosage_and_administration: ["COMBO DOSE"],
+    contraindications: ["c"],
+    warnings_and_cautions: ["w"],
+    adverse_reactions: ["a"],
+    how_supplied: ["h"],
+    information_for_patients: ["i"],
+    openfda: { generic_name: ["ATOVAQUONE AND PROGUANIL HYDROCHLORIDE"], substance_name: ["ATOVAQUONE", "PROGUANIL HYDROCHLORIDE"] },
+  };
+  const sentToClaude = (f: ReturnType<typeof routedFetch>) => JSON.stringify(JSON.parse(String(f.anthropicCalls()[1].init.body)).messages);
+
+  it("produto com uma substância nunca recebe a etiqueta da combinação", async () => {
+    const plain = { set_id: "33333333-3333-3333-3333-333333333333", indications_and_usage: ["PLAIN INDICATION TEXT"], openfda: { substance_name: ["ATOVAQUONE"] } };
+    const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [combo, plain] } });
+    await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
+    expect(sentToClaude(f)).toContain("PLAIN INDICATION TEXT");
+    expect(sentToClaude(f)).not.toContain("COMBO INDICATION TEXT");
+  });
+
+  it("só existe a etiqueta da combinação: found false e uma só chamada à Anthropic", async () => {
+    const f = routedFetch({ anthropic: [inn("atovaquone")], fda: { results: [combo] } });
+    const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
+    expect(r).toEqual({ status: 200, body: { found: false } });
+    expect(f.anthropicCalls()).toHaveLength(1);
+  });
+
+  it("duas substâncias: o URL exige ambas (AND) e escolhe a etiqueta da combinação", async () => {
+    const single = { set_id: "44444444-4444-4444-4444-444444444444", indications_and_usage: ["AMLODIPINE ONLY TEXT"], dosage_and_administration: ["d"], contraindications: ["c"], openfda: { generic_name: ["AMLODIPINE"], substance_name: ["AMLODIPINE BESYLATE"] } };
+    const both = { set_id: "55555555-5555-5555-5555-555555555555", indications_and_usage: ["AMLODIPINE VALSARTAN TEXT"], openfda: { generic_name: ["AMLODIPINE AND VALSARTAN"], substance_name: ["AMLODIPINE BESYLATE", "VALSARTAN"] } };
+    const f = routedFetch({ anthropic: [inn("amlodipine", "valsartan"), anthropicReply(JSON.stringify(out))], fda: { results: [single, both] } });
+    const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions({ name: "Exforge", activeSubstance: "Amlodipina + Valsartan" });
+    expect(f.fdaCalls()).toHaveLength(1);
+    expect(new URL(f.fdaCalls()[0].url).searchParams.get("search")).toBe('openfda.generic_name:"amlodipine" AND openfda.generic_name:"valsartan"');
+    expect(f.fdaCalls()[0].url).toContain("limit=25");
+    expect(sentToClaude(f)).toContain("AMLODIPINE VALSARTAN TEXT");
+    expect(sentToClaude(f)).not.toContain("AMLODIPINE ONLY TEXT");
+    expect(r.body.sourceUrl).toContain(both.set_id);
+  });
+
+  it("desempate pela dosagem pedida", async () => {
+    const base = { indications_and_usage: ["x"], dosage_and_administration: ["d"], openfda: { generic_name: ["ATOVAQUONE"], substance_name: ["ATOVAQUONE"] } };
+    const a = { ...base, set_id: "66666666-6666-6666-6666-666666666666", how_supplied: ["Tablets 250 mg. LABEL A"] };
+    const b = { ...base, set_id: "77777777-7777-7777-7777-777777777777", how_supplied: ["Suspension 750 mg per 5 mL. LABEL B"] };
+    const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [a, b] } });
+    const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
+    expect(r.body.sourceUrl).toContain(b.set_id);
+    expect(sentToClaude(f)).toContain("Suspension 750 mg per 5 mL");
+  });
+
+  it("a marca é ignorada: o pedido de substância traz a instrução e a substância ativa", async () => {
+    const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [label] } });
+    await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
+    const first = JSON.parse(String(f.anthropicCalls()[0].init.body));
+    expect(first.system).toMatch(/IGNORE brand, company/);
+    expect(first.system).toContain("Kabi");
+    expect(JSON.stringify(first.messages)).toContain("Atovaquona");
+  });
+
+  it("sem substance_name: só aceita etiqueta de uma única substância (conservador)", async () => {
+    const mk = (generic: string[]) => ({ set_id: "88888888-8888-8888-8888-888888888888", indications_and_usage: ["FALLBACK TEXT"], openfda: { generic_name: generic } });
+    const ok = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [mk(["ATOVAQUONE"])] } });
+    expect((await createAi({ apiKey: "k", fetchFn: ok.fn }).instructions(input)).body.found).toBe(true);
+    for (const g of [["ATOVAQUONE AND PROGUANIL HYDROCHLORIDE"], ["ATOVAQUONE", "PROGUANIL"], ["ATOVAQUONE, PROGUANIL"], ["ATOVAQUONE/PROGUANIL"], []]) {
+      const f = routedFetch({ anthropic: [inn("atovaquone")], fda: { results: [mk(g)] } });
+      expect((await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input)).body).toEqual({ found: false });
+      expect(f.anthropicCalls()).toHaveLength(1);
+    }
+    const two = routedFetch({ anthropic: [inn("amlodipine", "valsartan")], fda: { results: [mk(["AMLODIPINE AND VALSARTAN"])] } });
+    expect((await createAi({ apiKey: "k", fetchFn: two.fn }).instructions(input)).body).toEqual({ found: false });
   });
 });

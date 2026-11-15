@@ -7,6 +7,7 @@ import { useMessages } from "@/lib/i18n";
 import { getSync, useSyncState } from "@/lib/sync";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
 import { BulletListEditor } from "./BulletListEditor";
+import { toast } from "./Toast";
 import { LeafletTranslator } from "./LeafletTranslator";
 import { Button, ExternalLink, Notice, Select } from "./ui";
 
@@ -276,7 +277,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
                   onDone={(r) => {
                     const next: MedicalInfo = { source: "leaflet", translatedBy: "ai", original: r.pt, originalLanguage: "pt", lastReviewedAt: new Date().toISOString() };
                     for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
-                    void onSave(next).then(() => setOpen(true));
+                    void onSave(next).then(() => setOpen(true)).catch(() => toast(m.common.errorGeneric, "error"));
                   }}
                 />
                 <Button variant="secondary" block onClick={startEdit}>
