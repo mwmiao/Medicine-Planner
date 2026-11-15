@@ -164,10 +164,11 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
   const inn = (...names: string[]) => anthropicReply(JSON.stringify({ inn: names }));
 
   it("caminho feliz: devolve chinês, inglês e a fonte construída pelo servidor", async () => {
-    const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [label] } });
+    const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify({ ...out, nameZh: "阿托伐醌" }))], fda: { results: [label] } });
     const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
     expect(r.status).toBe(200);
     expect(r.body.found).toBe(true);
+    expect(r.body.nameZh).toBe("阿托伐醌");
     expect(r.body.zh.purpose).toEqual(["用于预防肺孢子菌肺炎。"]);
     expect(r.body.en).toBeDefined();
     expect(r.body.sourceUrl).toBe("https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=03ddcc33-729c-4d46-ae6b-2ee47978ba16");
@@ -176,6 +177,15 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     expect(JSON.stringify(second.messages)).toContain("once daily with food");
     expect(second.system).toContain("Simplified Chinese");
     expect(second.system).toContain("US");
+  });
+
+  it("nameZh: omitido se ausente, demasiado longo ou com caracteres estranhos", async () => {
+    for (const nameZh of [undefined, "阿".repeat(25), "阿<托>", "阿\n托"]) {
+      const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify({ ...out, nameZh }))], fda: { results: [label] } });
+      const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
+      expect(r.body.found).toBe(true);
+      expect(r.body.nameZh).toBeUndefined();
+    }
   });
 
   it("o URL do openFDA é correto e seguro", async () => {

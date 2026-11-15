@@ -53,6 +53,7 @@ function MedicationDetail() {
           {med.name}
         </h1>
         {med.activeSubstance ? <p className="mt-1 text-xl text-muted">{med.activeSubstance}</p> : null}
+        {med.medicalInfo?.nameZh ? <p className="text-xl font-semibold">{m.meds.chineseName}: {med.medicalInfo.nameZh}</p> : null}
         {med.pharmaceuticalForm ? <p className="text-lg text-muted">{formatPharmaceuticalForm(med.pharmaceuticalForm, locale)}</p> : null}
       </div>
 

@@ -94,6 +94,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
       };
       if (r.sourceUrl) next.sourceUrl = r.sourceUrl;
       if (r.sourceName) next.sourceName = r.sourceName;
+      if (r.nameZh) next.nameZh = r.nameZh;
       for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
       await onSave(next);
       setAuto("idle");
@@ -137,6 +138,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
     if (draft.original) cleaned.original = draft.original;
     if (draft.sourceUrl) cleaned.sourceUrl = draft.sourceUrl;
     if (draft.sourceName) cleaned.sourceName = draft.sourceName;
+    if (draft.nameZh) cleaned.nameZh = draft.nameZh;
     if (draft.originalLanguage) cleaned.originalLanguage = draft.originalLanguage;
     await onSave(cleaned);
     setEditing(false);
