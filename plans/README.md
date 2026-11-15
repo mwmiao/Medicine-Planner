@@ -8,22 +8,22 @@ fully before starting, honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-first-connect-never-overwrites-nas.md) | First connect never overwrites the NAS | P1 | S | — | DONE (reviewed 2026-11-13; commit f3ab8f7 on worktree branch, not merged) |
-| [002](002-sync-keeps-edits-made-during-sync.md) | Edits made during a sync are never erased | P1 | M | 001 | DONE (reviewed 2026-11-13; commit 1824cfd on advisor/002-sync-keeps-midsync-edits, not merged; pull-path race test skipped) |
-| [003](003-lockout-per-real-client-ip.md) | Lockout per real client IP behind a proxy | P2 | S | — | DONE (reviewed 2026-11-13; commit 2a8f89f on advisor/003-lockout-client-ip, not merged) |
-| [004](004-push-subscription-survives-403.md) | Push 403 doesn't delete the subscription; app repairs it | P2 | S–M | — | DONE (reviewed 2026-11-13; commit 4d2441f on advisor/004-push-403, not merged; phone-side repair has no automated test and the iPhone check was not run) |
+| [001](001-first-connect-never-overwrites-nas.md) | First connect never overwrites the NAS | P1 | S | — | DONE (reviewed 2026-11-13; commit f3ab8f7 on worktree branch, merged into main (branch deleted)) |
+| [002](002-sync-keeps-edits-made-during-sync.md) | Edits made during a sync are never erased | P1 | M | 001 | DONE (reviewed 2026-11-13; commit 1824cfd on advisor/002-sync-keeps-midsync-edits, merged into main (branch deleted); pull-path race test skipped) |
+| [003](003-lockout-per-real-client-ip.md) | Lockout per real client IP behind a proxy | P2 | S | — | DONE (reviewed 2026-11-13; commit 2a8f89f on advisor/003-lockout-client-ip, merged into main (branch deleted)) |
+| [004](004-push-subscription-survives-403.md) | Push 403 doesn't delete the subscription; app repairs it | P2 | S–M | — | DONE (reviewed 2026-11-13; commit 4d2441f on advisor/004-push-403, merged into main (branch deleted); phone-side repair has no automated test and the iPhone check was not run) |
 
-| [005](005-default-language-from-phone.md) | App starts in Chinese when the phone's language is Chinese | P1 | S | — | DONE (reviewed 2026-11-15; commit 2f4efcc on advisor/005-default-language, not merged; browser check with a Chinese-language browser not run) |
-| [006](006-settings-family-section.md) | Settings: her controls first, family/technical options collapsed | P2 | M | — | DONE (reviewed 2026-11-15; commit fabf0d7 on advisor/006-settings-family-section, not merged; no browser check of collapse, #family auto-open, delete dialog or standalone hiding) |
-| [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, not merged; on-screen layout/toast/undo flow not checked in a browser) |
-| [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, not merged; real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
-| [009](009-auto-connect-nas.md) | Opt-in auto-connect to the NAS (`AUTO_CONNECT=1`); remove the Today connect button | P1 | M | — | DONE (reviewed 2026-11-15; commit 830077b on advisor/009-auto-connect-nas, not merged; no iPhone/browser check of silent connection) |
-| [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | DONE (reviewed 2026-11-15; commit c4b5af5 on advisor/010-leaflet-chinese, stacked on 012, not merged; no real Anthropic call and no browser check) |
-| [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | DONE (reviewed 2026-11-15; commit bba4182 on advisor/011-box-photo-claude, stacked on 010 and 012, not merged; no real Anthropic call, no browser/iPhone check) |
-| [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, not merged; UI not checked in a browser) |
-| [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | DONE (reviewed 2026-11-15, 2 revision rounds; commit 8f2ce0a on advisor/014-auto-instructions, not merged; verified against live openFDA data with Claude faked; no real Anthropic call, no browser/iPhone check) |
-| [015](015-least-typing-add-medicine.md) | Box photo reads straight into the form (no preview/review taps when confident); − / + pill stepper; unit from form | P1 | M | — | DONE (reviewed 2026-11-15; commit 012ae84 on advisor/015-least-typing, not merged; layout not checked in a browser, AI scan path needs the owner's real key) |
-| [016](016-ai-working-indicator.md) | "Claude AI is working" indicator (moving bar + timer) for box reading, instruction lookup and leaflet translation | P2 | S | — | DONE (reviewed 2026-11-15; commit ec8185a on advisor/016-ai-working, not merged; visual not checked on a phone) |
+| [005](005-default-language-from-phone.md) | App starts in Chinese when the phone's language is Chinese | P1 | S | — | DONE (reviewed 2026-11-15; commit 2f4efcc on advisor/005-default-language, merged into main (branch deleted); browser check with a Chinese-language browser not run) |
+| [006](006-settings-family-section.md) | Settings: her controls first, family/technical options collapsed | P2 | M | — | DONE (reviewed 2026-11-15; commit fabf0d7 on advisor/006-settings-family-section, merged into main (branch deleted); no browser check of collapse, #family auto-open, delete dialog or standalone hiding) |
+| [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, merged into main (branch deleted); on-screen layout/toast/undo flow not checked in a browser) |
+| [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, merged into main (branch deleted); real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
+| [009](009-auto-connect-nas.md) | Opt-in auto-connect to the NAS (`AUTO_CONNECT=1`); remove the Today connect button | P1 | M | — | DONE (reviewed 2026-11-15; commit 830077b on advisor/009-auto-connect-nas, merged into main (branch deleted); no iPhone/browser check of silent connection) |
+| [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | DONE (reviewed 2026-11-15; commit c4b5af5 on advisor/010-leaflet-chinese, stacked on 012, merged into main (branch deleted); no real Anthropic call and no browser check) |
+| [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | DONE (reviewed 2026-11-15; commit bba4182 on advisor/011-box-photo-claude, stacked on 010 and 012, merged into main (branch deleted); no real Anthropic call, no browser/iPhone check) |
+| [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, merged into main (branch deleted); UI not checked in a browser) |
+| [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | DONE (reviewed 2026-11-15, 2 revision rounds; commit 8f2ce0a on advisor/014-auto-instructions, merged into main (branch deleted); verified against live openFDA data with Claude faked; no real Anthropic call, no browser/iPhone check) |
+| [015](015-least-typing-add-medicine.md) | Box photo reads straight into the form (no preview/review taps when confident); − / + pill stepper; unit from form | P1 | M | — | DONE (reviewed 2026-11-15; commit 012ae84 on advisor/015-least-typing, merged into main (branch deleted); layout not checked in a browser, AI scan path needs the owner's real key) |
+| [016](016-ai-working-indicator.md) | "Claude AI is working" indicator (moving bar + timer) for box reading, instruction lookup and leaflet translation | P2 | S | — | DONE (reviewed 2026-11-15; commit ec8185a on advisor/016-ai-working, merged into main (branch deleted); visual not checked on a phone) |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
@@ -49,6 +49,11 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 ## Verification baseline
 
 `npm test` (Vitest, 66 tests at planning time; 74 tests in 13 files on `34ffff1`) and `npm run typecheck` both pass. There is no lint script.
+
+## Changes made without a plan file
+
+- Dockerfile fix `COPY server/*.mjs ./` (commit 783ae89, merged): the image build failed because `server/ai.mjs` was not copied.
+- Simplified Chinese as the default language (commit eeb38ed, merged): replaces plan 005's phone-language detection (`localeFromLanguages` was removed).
 
 ## Findings considered and rejected
 
