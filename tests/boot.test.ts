@@ -13,9 +13,23 @@ function boot(stored: Record<string, string>, languages: string[]) {
 }
 
 describe("script de arranque", () => {
-  it("sem escolha guardada segue o idioma do telemóvel", () => {
-    expect(boot({}, ["zh-Hans-PT"]).lang).toBe("zh-CN");
-    expect(boot({}, ["pt-PT"]).lang).toBe("pt-PT");
+  it("sem escolha guardada é chinês, mesmo com o telemóvel em português", () => {
+    expect(boot({}, ["pt-PT"]).lang).toBe("zh-CN");
+  });
+  it("com armazenamento a falhar é chinês e não lança erro", () => {
+    const documentElement = { lang: "pt-PT", dataset: {} as Record<string, string> };
+    const run = () =>
+      runInNewContext(PREFERENCES_BOOT_SCRIPT, {
+        localStorage: {
+          getItem: () => {
+            throw new Error("bloqueado");
+          },
+        },
+        navigator: { languages: ["pt-PT"], language: "pt-PT" },
+        document: { documentElement },
+      });
+    expect(run).not.toThrow();
+    expect(documentElement.lang).toBe("zh-CN");
   });
   it("a escolha guardada tem prioridade", () => {
     expect(boot({ "mp.locale": "pt" }, ["zh-CN"]).lang).toBe("pt-PT");

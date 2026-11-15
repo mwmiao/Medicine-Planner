@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-PT" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: PREFERENCES_BOOT_SCRIPT }} />
       </head>

@@ -1,16 +1,29 @@
-import { describe, expect, it } from "vitest";
-import { localeFromLanguages } from "@/lib/settings";
+import { afterEach, describe, expect, it } from "vitest";
+import { getLocale } from "@/lib/settings";
 
-describe("idioma por omissão a partir do telemóvel", () => {
-  it("escolhe chinês quando o primeiro idioma é chinês", () => {
-    expect(localeFromLanguages(["zh-Hans-PT", "pt-PT"])).toBe("zh");
-    expect(localeFromLanguages(["zh-CN"])).toBe("zh");
-    expect(localeFromLanguages(["ZH"])).toBe("zh");
+function stubStorage(value: string | null) {
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (k: string) => (k === "mp.locale" ? value : null),
+  };
+}
+
+describe("idioma por omissão", () => {
+  afterEach(() => {
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   });
-  it("escolhe português nos outros casos", () => {
-    expect(localeFromLanguages(["pt-PT", "zh-CN"])).toBe("pt");
-    expect(localeFromLanguages(["en-US"])).toBe("pt");
-    expect(localeFromLanguages([])).toBe("pt");
-    expect(localeFromLanguages([""])).toBe("pt");
+  it("sem armazenamento é chinês", () => {
+    expect(getLocale()).toBe("zh");
+  });
+  it("a escolha guardada 'pt' tem prioridade", () => {
+    stubStorage("pt");
+    expect(getLocale()).toBe("pt");
+  });
+  it("a escolha guardada 'zh' dá chinês", () => {
+    stubStorage("zh");
+    expect(getLocale()).toBe("zh");
+  });
+  it("um valor desconhecido dá chinês", () => {
+    stubStorage("en");
+    expect(getLocale()).toBe("zh");
   });
 });
