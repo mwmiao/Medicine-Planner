@@ -37,8 +37,9 @@ export function startSync(): () => void {
   const e = getSync();
   e.installHooks();
   void e.syncNow();
-  const onVisible = () => document.visibilityState === "visible" && void e.syncNow();
-  const onOnline = () => void e.syncNow();
+  void e.autoConnect();
+  const onVisible = () => document.visibilityState === "visible" && (void e.syncNow(), void e.autoConnect());
+  const onOnline = () => (void e.syncNow(), void e.autoConnect());
   document.addEventListener("visibilitychange", onVisible);
   window.addEventListener("online", onOnline);
   const id = setInterval(() => document.visibilityState === "visible" && void e.syncNow(), 60_000);

@@ -86,6 +86,7 @@ Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando
 - O código viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
 - A fotografia da caixa **não é guardada**: fica só na memória durante a leitura.
 - Para expor o NAS à internet, prefira um túnel ou proxy com controlo de acesso (ex.: Cloudflare Tunnel com Cloudflare Access).
+- Com `AUTO_CONNECT=1` o código de sincronização deixa de ser um segredo para quem chega ao endereço da app; não o ative num endereço público sem controlo de acesso.
 
 ## Guardar os dados no NAS (sincronização)
 
@@ -148,6 +149,7 @@ Variáveis do contentor:
 | `CRON_SECRET` | Opcional; permite chamar `POST /api/cron/tick` de fora com `Authorization: Bearer …` |
 | `TRUST_PROXY=1` | Opcional; atrás de um proxy reverso, conta as tentativas erradas por cliente (cabeçalho `X-Forwarded-For`) em vez de bloquear todos. Só ative se o proxy for o único caminho até ao contentor |
 | `INTERNAL_CRON=off` | Desliga o "cron" interno (se usar um externo) |
+| `AUTO_CONNECT=1` | Opcional; a app liga-se sozinha ao NAS (o servidor entrega o código em `GET /api/connect`, sem o utilizador escrever nada). **Quem conseguir abrir o endereço da app recebe o código e todos os dados** — use só se o endereço for privado (rede de casa, VPN ou atrás de Cloudflare Access) |
 
 **Rede:** o NAS precisa de acesso à internet **de saída** (para o serviço de push da Apple). O telemóvel precisa de chegar ao NAS por **HTTPS** para ativar os lembretes e sincronizar; o envio dos lembretes não precisa que o telemóvel esteja em casa.
 

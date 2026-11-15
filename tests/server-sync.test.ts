@@ -197,3 +197,40 @@ describe("bloqueio por endereço atrás de proxy", () => {
     }
   });
 });
+
+describe("ligação automática", () => {
+  async function get(base: string, path: string, method = "GET") {
+    const res = await fetch(`${base}${path}`, { method });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  }
+
+  it("com AUTO_CONNECT=1 entrega o código sem autenticação", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, AUTO_CONNECT: "1" });
+    try {
+      const r = await get(s.base, "/api/connect");
+      expect(r.status).toBe(200);
+      expect(r.body).toEqual({ code: CODE });
+      expect((await get(s.base, "/api/connect", "POST")).status).toBe(404);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("sem AUTO_CONNECT não entrega o código", async () => {
+    const s = await startServer({ SYNC_CODE: CODE });
+    try {
+      expect((await get(s.base, "/api/connect")).status).toBe(404);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("com AUTO_CONNECT mas sem SYNC_CODE não há nada para entregar", async () => {
+    const s = await startServer({ SYNC_CODE: "", AUTO_CONNECT: "1" });
+    try {
+      expect((await get(s.base, "/api/connect")).status).toBe(404);
+    } finally {
+      s.proc.kill();
+    }
+  });
+});

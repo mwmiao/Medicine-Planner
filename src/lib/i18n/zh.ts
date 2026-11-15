@@ -314,8 +314,6 @@ export const zh: Messages = {
       error: "同步失败，请再试一次。",
     },
     connectedToast: "已连接 NAS，资料已保存。",
-    todayPrompt: "把药品资料保存到 NAS，就不会丢失。",
-    todayPromptAction: "连接 NAS",
     todayProblem: "无法保存到 NAS，请查看设置。",
   },
   settings: {

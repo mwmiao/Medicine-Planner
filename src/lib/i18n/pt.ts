@@ -329,8 +329,6 @@ export const pt = {
       error: "Não foi possível sincronizar. Tente outra vez.",
     },
     connectedToast: "Ligado ao NAS. Os dados estão guardados.",
-    todayPrompt: "Guarde os medicamentos no NAS para não os perder.",
-    todayPromptAction: "Ligar ao NAS",
     todayProblem: "Não foi possível guardar no NAS. Veja as Definições.",
   },
   settings: {

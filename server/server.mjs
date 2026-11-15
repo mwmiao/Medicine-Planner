@@ -25,6 +25,7 @@ const DATA_FILE = join(DATA_DIR, "medicine-planner.json");
 const HISTORY_DIR = join(DATA_DIR, "history");
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 const TRUST_PROXY = process.env.TRUST_PROXY === "1";
+const AUTO_CONNECT = process.env.AUTO_CONNECT === "1";
 const INTERNAL_CRON = process.env.INTERNAL_CRON !== "off";
 
 const MIME = {
@@ -202,6 +203,11 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/health") {
     return sendJson(res, 200, { ok: true, sync: Boolean(SYNC_CODE), push: Boolean(push) });
   }
+  if (url.pathname === "/api/connect") {
+    // Opcional (AUTO_CONNECT=1): entrega o código para a app se ligar sozinha. Qualquer pessoa que abra o endereço o recebe.
+    if (!AUTO_CONNECT || !SYNC_CODE || req.method !== "GET") return sendJson(res, 404, { error: "not_found" });
+    return sendJson(res, 200, { code: SYNC_CODE });
+  }
   if (url.pathname === "/api/cron/tick") {
     // Para um cron externo (opcional): o servidor já faz isto sozinho a cada minuto.
     if (!push) return sendJson(res, 503, { error: "sync_disabled" });
@@ -332,7 +338,7 @@ export function createApp() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   await mkdir(DATA_DIR, { recursive: true });
   createApp().listen(PORT, () => {
-    console.log(`Medicine Planner on :${PORT} — static: ${ROOT} — data: ${DATA_DIR} — sync ${SYNC_CODE ? "ON" : "OFF (set SYNC_CODE)"}`);
+    console.log(`Medicine Planner on :${PORT} — static: ${ROOT} — data: ${DATA_DIR} — sync ${SYNC_CODE ? "ON" : "OFF (set SYNC_CODE)"} — auto-connect ${AUTO_CONNECT && SYNC_CODE ? "ON (anyone who can open this URL gets the sync code)" : "off"}`);
   });
   if (push && INTERNAL_CRON) {
     // "Cron" interno: corre no início de cada minuto.
