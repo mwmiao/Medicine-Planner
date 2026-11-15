@@ -41,6 +41,21 @@ export async function readBoxPhoto(image: { mediaType: string; data: string }, i
   return (await res.json()) as BoxResult;
 }
 
+export type InstructionsResult =
+  | { found: false }
+  | { found: true; zh: Sections; en: Sections; sourceName?: string; sourceUrl?: string };
+
+/** Instruções em chinês a partir de uma etiqueta pública (openFDA) da mesma substância ativa. */
+export async function findInstructions(
+  input: { name: string; activeSubstance?: string; strength?: string; form?: string },
+  io: NasIo = {},
+  code: string | null = getSync().code,
+): Promise<InstructionsResult> {
+  if (!code) throw new Error("not_connected");
+  const res = await nasRequest(code, "POST", "/api/ai/instructions", input, io);
+  return (await res.json()) as InstructionsResult;
+}
+
 /** Reduz a fotografia (lado maior `maxSide`) e converte-a em JPEG base64, para o envio ser leve. */
 export async function fileToJpegBase64(file: Blob, maxSide = 1600, quality = 0.8): Promise<{ mediaType: "image/jpeg"; data: string }> {
   const url = URL.createObjectURL(file);

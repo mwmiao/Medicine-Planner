@@ -14,7 +14,7 @@ export type Frequency = {
 };
 
 /** Origem da informação sobre o medicamento. */
-export type InfoSource = "infarmed" | "leaflet" | "box" | "manual";
+export type InfoSource = "infarmed" | "leaflet" | "box" | "manual" | "web";
 
 export type InfarmedLink = {
   matched: boolean;
@@ -38,6 +38,9 @@ export type MedicalInfo = {
   // tradução automática; `original` guarda o texto em português do folheto
   translatedBy?: "ai";
   original?: Partial<Record<MedicalInfoSection, string[]>>;
+  sourceUrl?: string;
+  sourceName?: string;
+  originalLanguage?: "pt" | "en";
 };
 
 export const MEDICAL_INFO_SECTIONS = [
