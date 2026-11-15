@@ -335,6 +335,8 @@ export const pt = {
     language: "Idioma",
     textSize: "Tamanho do texto",
     sizes: { normal: "Normal", large: "Grande", xlarge: "Muito grande" },
+    familyTitle: "Para a família",
+    familyHint: "Ligação ao NAS, lembretes, cópia de segurança e outras opções para quem instalou a app.",
     backup: "Cópia de segurança",
     backupIntro: "Os dados estão guardados apenas neste telemóvel. Faça uma cópia de vez em quando.",
     export: "Exportar dados (JSON)",

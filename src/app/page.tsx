@@ -48,7 +48,7 @@ export default function TodayPage() {
           <Notice tone="warn">
             <p className="font-bold">☁️ {m.sync.todayPrompt}</p>
             <div className="mt-2">
-              <LinkButton href="/settings/" block>
+              <LinkButton href="/settings/#family" block>
                 {m.sync.todayPromptAction}
               </LinkButton>
             </div>
@@ -57,7 +57,7 @@ export default function TodayPage() {
       ) : sync.status === "unauthorized" || sync.status === "unavailable" || sync.status === "error" ? (
         <div className="mb-4">
           <Notice tone="error">
-            <a href="/settings/" className="underline">
+            <a href="/settings/#family" className="underline">
               {m.sync.todayProblem}
             </a>
           </Notice>

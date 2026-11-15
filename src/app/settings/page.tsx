@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { RemindersSection } from "@/components/RemindersSection";
 import { SyncSection } from "@/components/SyncSection";
@@ -9,6 +9,7 @@ import { Button, Card, ExternalLink, Notice, PageTitle } from "@/components/ui";
 import { backupFileName, deleteAllData, exportData, importData } from "@/lib/backup";
 import { useMessages } from "@/lib/i18n";
 import { INFOMED_SEARCH_URL } from "@/lib/infarmed/urls";
+import { isStandalone } from "@/lib/push";
 import { setLocale, setTextSize, useTextSize } from "@/lib/settings";
 import { getSync } from "@/lib/sync";
 import type { Locale, TextSize } from "@/lib/types";
@@ -47,6 +48,13 @@ export default function SettingsPage() {
   const [pendingImport, setPendingImport] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [importError, setImportError] = useState(false);
+  const [familyOpen, setFamilyOpen] = useState(false);
+  const [standalone, setStandalone] = useState(false);
+  useEffect(() => {
+    setStandalone(isStandalone());
+    // Ligações vindas do ecrã "Hoje" (/settings/#family) abrem a secção da família.
+    if (window.location.hash === "#family") setFamilyOpen(true);
+  }, []);
 
   const closeImport = useCallback(() => setPendingImport(null), []);
   const closeDelete = useCallback(() => setDeleteStep(0), []);
@@ -91,8 +99,6 @@ export default function SettingsPage() {
         <Choice<Locale> value={locale} options={[["pt", "Português"], ["zh", "中文"]]} onChange={setLocale} />
       </Section>
 
-      <SyncSection />
-
       <Section title={m.settings.textSize}>
         <Choice<TextSize>
           value={size}
@@ -105,6 +111,17 @@ export default function SettingsPage() {
         />
       </Section>
 
+      <details id="family" open={familyOpen} onToggle={(e) => setFamilyOpen(e.currentTarget.open)}>
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-line [&::-webkit-details-marker]:hidden">
+          <span>
+            <span className="block text-2xl font-bold">{m.settings.familyTitle}</span>
+            <span className="block text-base text-muted">{m.settings.familyHint}</span>
+          </span>
+          <span aria-hidden className="text-3xl text-muted">{familyOpen ? "−" : "+"}</span>
+        </summary>
+        <div className="mt-5 flex flex-col gap-5">
+      <SyncSection />
+
       <RemindersSection />
 
       <Section title={m.settings.remindersTitle}>
@@ -116,13 +133,15 @@ export default function SettingsPage() {
         </ol>
       </Section>
 
-      <Section title={m.settings.installTitle}>
-        <ol className="list-decimal space-y-2 pl-6 text-lg">
-          {m.settings.installSteps.map((s) => (
-            <li key={s}>{s}</li>
-          ))}
-        </ol>
-      </Section>
+      {!standalone ? (
+        <Section title={m.settings.installTitle}>
+          <ol className="list-decimal space-y-2 pl-6 text-lg">
+            {m.settings.installSteps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </Section>
+      ) : null}
 
       <Section title={m.settings.backup}>
         <p className="text-lg text-muted">{m.settings.backupIntro}</p>
@@ -157,6 +176,8 @@ export default function SettingsPage() {
           🗑 {m.settings.deleteAll}
         </Button>
       </Section>
+        </div>
+      </details>
 
       <ConfirmDialog
         open={pendingImport !== null}
