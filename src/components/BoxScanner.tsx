@@ -10,7 +10,7 @@ import { OcrCancelled, recognizeImage } from "@/lib/ocr/ocr";
 import { isUnclear, parseOcr, uncertainFields, type ParsedBox } from "@/lib/ocr/parse";
 import { GUIDE, guideCrop, prepareImage } from "@/lib/ocr/preprocess";
 import type { OcrExtract } from "@/lib/types";
-import { Button, Card, Field, Notice, TextArea, TextInput } from "./ui";
+import { AiWorking, Button, Card, Field, Notice, TextArea, TextInput } from "./ui";
 
 type Phase = "start" | "starting" | "camera" | "preview" | "reading" | "failed" | "review";
 /** De onde veio a fotografia, para "Tirar outra" voltar ao mesmo sítio. */
@@ -401,13 +401,20 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
 
       {phase === "reading" ? (
         <>
-          <div role="status" aria-live="polite" className="flex flex-col gap-2">
-            <p className="text-xl font-semibold">{stage === "barcode" ? m.scan.readingBarcode : stage === "ai" ? m.scan.readingAi : m.scan.reading(Math.round(progress * 100))}</p>
-            <div className="h-4 overflow-hidden rounded-full bg-gray-200">
-              <div className="h-full bg-primary transition-all" style={{ width: `${Math.max(3, Math.round(progress * 100))}%` }} />
+          {stage === "ai" ? (
+            <>
+              <AiWorking title={m.scan.readingAi} hint={m.ai.hintBox} />
+              {slow ? <p className="text-lg">{m.scan.slow}</p> : null}
+            </>
+          ) : (
+            <div role="status" aria-live="polite" className="flex flex-col gap-2">
+              <p className="text-xl font-semibold">{stage === "barcode" ? m.scan.readingBarcode : m.scan.reading(Math.round(progress * 100))}</p>
+              <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+                <div className="h-full bg-primary transition-all" style={{ width: `${Math.max(3, Math.round(progress * 100))}%` }} />
+              </div>
+              {slow ? <p className="text-lg">{m.scan.slow}</p> : null}
             </div>
-            {slow ? <p className="text-lg">{m.scan.slow}</p> : null}
-          </div>
+          )}
           {manualButton("secondary")}
         </>
       ) : null}

@@ -9,7 +9,7 @@ import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalI
 import { BulletListEditor } from "./BulletListEditor";
 import { toast } from "./Toast";
 import { LeafletTranslator } from "./LeafletTranslator";
-import { Button, ExternalLink, Notice, Select } from "./ui";
+import { AiWorking, Button, ExternalLink, Notice, Select } from "./ui";
 
 const SOURCES: InfoSource[] = ["infarmed", "leaflet", "box", "manual", "web"];
 
@@ -200,7 +200,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
               {!info ? <p className="mb-3 text-lg text-muted">{m.info.noInfo}</p> : null}
               {!info && auto === "searching" ? (
                 <div className="mb-3">
-                  <Notice>{m.info.autoSearching}</Notice>
+                  <AiWorking title={m.info.autoSearching} hint={m.ai.hintInstructions} />
                 </div>
               ) : null}
               {!info && (auto === "notFound" || auto === "failed") ? (

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { ComponentProps, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useMessages } from "@/lib/i18n";
 
 type Variant = "primary" | "secondary" | "success" | "danger" | "ghost";
 
@@ -55,6 +57,31 @@ export function ExternalLink({ href, children, variant = "secondary" }: { href: 
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-3xl bg-white p-5 shadow-sm ring-1 ring-line ${className}`}>{children}</section>;
+}
+
+/** "Claude IA a trabalhar": barra em movimento, contador de segundos e uma frase calma. Sem percentagens inventadas. */
+export function AiWorking({ title, hint }: { title: string; hint?: string }) {
+  const { m } = useMessages();
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div role="status" aria-live="polite" className="flex flex-col gap-3 rounded-2xl bg-primary-soft p-4 text-blue-950">
+      <p className="flex items-center gap-2 text-lg font-bold">
+        <span aria-hidden className="text-2xl">✨</span>
+        {m.ai.badge}
+      </p>
+      <p className="text-xl font-semibold">{title}</p>
+      <div className="relative h-4 overflow-hidden rounded-full bg-white">
+        <div className="ai-bar rounded-full bg-primary" />
+      </div>
+      <p className="text-lg tabular-nums">{m.ai.elapsed(seconds)}</p>
+      {hint ? <p className="text-lg">{hint}</p> : null}
+      <p className="text-lg font-semibold">{m.ai.stay}</p>
+    </div>
+  );
 }
 
 export function Field({

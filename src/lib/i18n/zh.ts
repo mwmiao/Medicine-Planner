@@ -20,6 +20,14 @@ export const zh: Messages = {
     errorGeneric: "出了点问题，请再试一次。",
     offline: "现在没有网络。您的资料仍然可以查看。",
   },
+  ai: {
+    badge: "Claude AI 正在处理",
+    elapsed: (n: number) => `已等待 ${n} 秒`,
+    stay: "请不要离开这一页，等它完成。",
+    hintBox: "通常需要 5 到 20 秒。",
+    hintInstructions: "正在查找并翻译说明，通常需要 10 到 30 秒。",
+    hintLeaflet: "正在阅读并翻译说明书，可能需要大约一分钟。",
+  },
   nav: { today: "今天", medications: "我的药", settings: "设置" },
   lang: { label: "语言" },
   units: {
