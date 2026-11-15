@@ -298,6 +298,7 @@ export const pt = {
     keepOpening: "Abra a app pelo menos uma vez por mês para os lembretes continuarem marcados.",
     pushTitle: (name: string) => `💊 ${name}`,
     pushBody: (dose: string, time: string) => `${dose} — ${time}. Toque para abrir.`,
+    pushFollowUp: (dose: string, time: string) => `Ainda não registou esta toma: ${dose} — ${time}. Toque para abrir.`,
     testTitle: "💊 Lembrete de teste",
     testBody: "Os lembretes estão a funcionar.",
   },
