@@ -26,6 +26,14 @@ export const pt = {
     errorGeneric: "Ocorreu um erro. Tente novamente, por favor.",
     offline: "Sem ligação à internet. Os seus dados continuam disponíveis.",
   },
+  ai: {
+    badge: "Claude IA a trabalhar",
+    elapsed: (n: number) => `À espera há ${n} s`,
+    stay: "Não saia desta página até terminar.",
+    hintBox: "Costuma demorar 5 a 20 segundos.",
+    hintInstructions: "Está a procurar e a traduzir as instruções. Costuma demorar 10 a 30 segundos.",
+    hintLeaflet: "Está a ler e a traduzir o folheto. Pode demorar cerca de um minuto.",
+  },
   nav: { today: "Hoje", medications: "Medicamentos", settings: "Definições" },
   lang: { label: "Idioma" },
   units: {

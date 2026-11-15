@@ -58,3 +58,22 @@ select,
 textarea {
   font-size: 1rem;
 }
+
+/* Barra indeterminada (IA a trabalhar): um bloco que corre da esquerda para a direita. */
+@keyframes ai-slide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+.ai-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  animation: ai-slide 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-bar {
+    animation: none;
+    left: 30%;
+  }
+}

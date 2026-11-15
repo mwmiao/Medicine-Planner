@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { aiAvailable, fileToJpegBase64, translateLeaflet, type LeafletResult } from "@/lib/ai";
 import { useMessages } from "@/lib/i18n";
 import { getSync, useSyncState } from "@/lib/sync";
-import { Button, Notice, TextArea } from "./ui";
+import { AiWorking, Button, Notice, TextArea } from "./ui";
 
 const MAX_PHOTOS = 6;
 const MIN_TEXT = 20;
@@ -80,7 +80,7 @@ export function LeafletTranslator({ onDone }: { onDone: (result: LeafletResult) 
           <Button block disabled={!canRun} onClick={() => void run()}>
             {m.info.translateRun}
           </Button>
-          {busy ? <Notice>{m.info.translating}</Notice> : null}
+          {busy ? <AiWorking title={m.info.translating} hint={m.ai.hintLeaflet} /> : null}
           {problem === "unreadable" ? <Notice tone="warn">{m.info.translateUnreadable}</Notice> : null}
           {problem === "failed" ? <Notice tone="error">{m.info.translateFailed}</Notice> : null}
         </div>
