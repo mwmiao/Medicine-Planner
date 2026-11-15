@@ -9,7 +9,7 @@ import { toast } from "@/components/Toast";
 import { Button, Card, ColorDot, LinkButton, Loading, Notice } from "@/components/ui";
 import { toDateKey } from "@/lib/dates";
 import { db } from "@/lib/db";
-import { describeFrequency, formatDateTimeShort, formatDose } from "@/lib/format";
+import { describeFrequency, formatDateTimeShort, formatDose, formatPharmaceuticalForm } from "@/lib/format";
 import { useNow } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
 import { deleteMedication, doseUnitLooksWrong, toInput, updateMedication } from "@/lib/medications";
@@ -53,7 +53,7 @@ function MedicationDetail() {
           {med.name}
         </h1>
         {med.activeSubstance ? <p className="mt-1 text-xl text-muted">{med.activeSubstance}</p> : null}
-        {med.pharmaceuticalForm ? <p className="text-lg text-muted">{med.pharmaceuticalForm}</p> : null}
+        {med.pharmaceuticalForm ? <p className="text-lg text-muted">{formatPharmaceuticalForm(med.pharmaceuticalForm, locale)}</p> : null}
       </div>
 
       <Card>
@@ -98,8 +98,6 @@ function MedicationDetail() {
           toast(m.meds.saved);
         }}
       />
-
-      {!med.infarmed?.matched ? <Notice>{m.infarmed.notLinked}</Notice> : null}
 
       <div className="flex flex-col gap-3">
         <LinkButton href={`/medications/edit/?id=${encodeURIComponent(med.id)}`} variant="secondary" block>
