@@ -323,6 +323,8 @@ export const zh: Messages = {
     language: "语言",
     textSize: "字体大小",
     sizes: { normal: "标准", large: "大", xlarge: "特大" },
+    familyTitle: "家人设置",
+    familyHint: "连接 NAS、手机提醒、备份等，供帮忙安装应用的家人使用。",
     backup: "备份",
     backupIntro: "资料只保存在这部手机上。请不时做一次备份。",
     export: "导出资料（JSON）",
