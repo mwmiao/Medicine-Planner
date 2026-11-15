@@ -13,6 +13,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/p
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { createAi } from "./ai.mjs";
 import { PushService } from "./push.mjs";
 
 const PORT = Number(process.env.PORT ?? 1380);
@@ -21,6 +22,7 @@ const DATA_DIR = resolve(process.env.DATA_DIR ?? "data");
 const SYNC_CODE = process.env.SYNC_CODE ?? "";
 const HISTORY_KEEP = Number(process.env.HISTORY_KEEP ?? 50);
 const MAX_BODY = 5 * 1024 * 1024;
+const AI_MAX_BODY = 12 * 1024 * 1024;
 const DATA_FILE = join(DATA_DIR, "medicine-planner.json");
 const HISTORY_DIR = join(DATA_DIR, "history");
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
@@ -131,12 +133,12 @@ function sendJson(res, status, body) {
   res.end(json);
 }
 
-async function readBody(req) {
+async function readBody(req, max = MAX_BODY) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_BODY) throw Object.assign(new Error("Too large"), { status: 413 });
+    if (size > max) throw Object.assign(new Error("Too large"), { status: 413 });
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -181,6 +183,29 @@ async function handlePush(req, res, url) {
   return sendJson(res, result.status, result.body);
 }
 
+// ---------- IA (tradução do folheto) ----------
+
+// A chave só existe aqui, no ambiente do servidor: nunca é enviada nem registada.
+const ai = createAi({ apiKey: process.env.ANTHROPIC_API_KEY ?? "", model: process.env.AI_MODEL || undefined });
+
+async function handleAi(req, res, url) {
+  if (!ai.enabled) return sendJson(res, 503, { error: "ai_disabled" });
+  const routes = {
+    "POST /api/ai/leaflet": (b) => ai.leaflet(b),
+    "POST /api/ai/box": (b) => ai.box(b),
+  };
+  const handler = routes[`${req.method} ${url.pathname}`];
+  if (!handler) return sendJson(res, 404, { error: "not_found" });
+  let body;
+  try {
+    body = await readBody(req, AI_MAX_BODY);
+  } catch (e) {
+    return sendJson(res, e.status ?? 400, { error: e.status === 413 ? "too_large" : "bad_json" });
+  }
+  const result = await handler(body);
+  return sendJson(res, result.status, result.body);
+}
+
 // ---------- API ----------
 
 /** Autenticação comum: código de sincronização, com bloqueio após muitas tentativas erradas. */
@@ -201,7 +226,7 @@ function authorize(req, res) {
 
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/health") {
-    return sendJson(res, 200, { ok: true, sync: Boolean(SYNC_CODE), push: Boolean(push) });
+    return sendJson(res, 200, { ok: true, sync: Boolean(SYNC_CODE), push: Boolean(push), ai: Boolean(SYNC_CODE) && ai.enabled });
   }
   if (url.pathname === "/api/connect") {
     // Opcional (AUTO_CONNECT=1): entrega o código para a app se ligar sozinha. Qualquer pessoa que abra o endereço o recebe.
@@ -221,6 +246,11 @@ async function handleApi(req, res, url) {
     if (!SYNC_CODE) return sendJson(res, 503, { error: "sync_disabled" });
     if (url.pathname !== "/api/push/key" && !authorize(req, res)) return;
     return handlePush(req, res, url);
+  }
+  if (url.pathname.startsWith("/api/ai/")) {
+    if (!SYNC_CODE) return sendJson(res, 503, { error: "sync_disabled" });
+    if (!authorize(req, res)) return;
+    return handleAi(req, res, url);
   }
   if (url.pathname !== "/api/data") return sendJson(res, 404, { error: "not_found" });
   if (!SYNC_CODE) return sendJson(res, 503, { error: "sync_disabled" });
@@ -338,7 +368,7 @@ export function createApp() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   await mkdir(DATA_DIR, { recursive: true });
   createApp().listen(PORT, () => {
-    console.log(`Medicine Planner on :${PORT} — static: ${ROOT} — data: ${DATA_DIR} — sync ${SYNC_CODE ? "ON" : "OFF (set SYNC_CODE)"} — auto-connect ${AUTO_CONNECT && SYNC_CODE ? "ON (anyone who can open this URL gets the sync code)" : "off"}`);
+    console.log(`Medicine Planner on :${PORT} — static: ${ROOT} — data: ${DATA_DIR} — sync ${SYNC_CODE ? "ON" : "OFF (set SYNC_CODE)"} — auto-connect ${AUTO_CONNECT && SYNC_CODE ? "ON (anyone who can open this URL gets the sync code)" : "off"} — ai ${ai.enabled ? "ON" : "off"}`);
   });
   if (push && INTERNAL_CRON) {
     // "Cron" interno: corre no início de cada minuto.

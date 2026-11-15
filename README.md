@@ -84,9 +84,10 @@ Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando
 
 - A sincronização usa um único **código de sincronização** (`SYNC_CODE`), sem contas. O servidor bloqueia um endereço após 10 códigos errados em 15 minutos; atrás de um proxy reverso, só passa a ser por cliente (em vez de bloquear todos) com `TRUST_PROXY=1`.
 - O código viaja em cada pedido, por isso **use sempre HTTPS** fora de casa.
-- A fotografia da caixa **não é guardada**: fica só na memória durante a leitura.
+- A fotografia da caixa **não é guardada**: fica só na memória durante a leitura, e só sai do telemóvel se `ANTHROPIC_API_KEY` estiver ativa.
 - Para expor o NAS à internet, prefira um túnel ou proxy com controlo de acesso (ex.: Cloudflare Tunnel com Cloudflare Access).
 - Com `AUTO_CONNECT=1` o código de sincronização deixa de ser um segredo para quem chega ao endereço da app; não o ative num endereço público sem controlo de acesso.
+- Com `ANTHROPIC_API_KEY`, as páginas do folheto fotografadas ou coladas são enviadas à Anthropic para tradução; a fotografia da caixa, quando a IA está ativa, também é enviada à Anthropic e não é guardada. O pedido exige o código de sincronização; a chave nunca sai do servidor.
 
 ## Guardar os dados no NAS (sincronização)
 
@@ -150,6 +151,8 @@ Variáveis do contentor:
 | `TRUST_PROXY=1` | Opcional; atrás de um proxy reverso, conta as tentativas erradas por cliente (cabeçalho `X-Forwarded-For`) em vez de bloquear todos. Só ative se o proxy for o único caminho até ao contentor |
 | `INTERNAL_CRON=off` | Desliga o "cron" interno (se usar um externo) |
 | `AUTO_CONNECT=1` | Opcional; a app liga-se sozinha ao NAS (o servidor entrega o código em `GET /api/connect`, sem o utilizador escrever nada). **Quem conseguir abrir o endereço da app recebe o código e todos os dados** — use só se o endereço for privado (rede de casa, VPN ou atrás de Cloudflare Access) |
+| `ANTHROPIC_API_KEY` | Opcional; liga a tradução do folheto para chinês e a leitura da fotografia da caixa. A chave fica só no servidor. Os textos/fotografias do folheto são enviados à Anthropic; não contêm dados pessoais. |
+| `AI_MODEL` | Opcional; modelo a usar (por omissão `claude-sonnet-5-5`). Há um limite de 60 pedidos por hora. |
 
 **Rede:** o NAS precisa de acesso à internet **de saída** (para o serviço de push da Apple). O telemóvel precisa de chegar ao NAS por **HTTPS** para ativar os lembretes e sincronizar; o envio dos lembretes não precisa que o telemóvel esteja em casa.
 

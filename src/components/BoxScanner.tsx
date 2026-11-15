@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useMessages } from "@/lib/i18n";
 import { decodeBarcode } from "@/lib/barcode/decode";
-import type { BarcodeInfo } from "@/lib/barcode/gs1";
+import { aiAvailable, fileToJpegBase64, readBoxPhoto } from "@/lib/ai";
+import { validGtin, type BarcodeInfo } from "@/lib/barcode/gs1";
+import { getSync } from "@/lib/sync";
 import { OcrCancelled, recognizeImage } from "@/lib/ocr/ocr";
 import { isUnclear, parseOcr, uncertainFields, type ParsedBox } from "@/lib/ocr/parse";
 import { GUIDE, guideCrop, prepareImage } from "@/lib/ocr/preprocess";
@@ -26,7 +28,8 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
   const [error, setError] = useState<string | null>(null);
   const [failMsg, setFailMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState<"barcode" | "text">("barcode");
+  const [stage, setStage] = useState<"barcode" | "ai" | "text">("barcode");
+  const [aiReady, setAiReady] = useState(false);
   const [slow, setSlow] = useState(false);
   const [raw, setRaw] = useState("");
   const [barcode, setBarcode] = useState<BarcodeInfo | null>(null);
@@ -88,6 +91,17 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
     return () => document.removeEventListener("visibilitychange", onHide);
   }, []);
 
+  // A leitura pela Claude só é usada com o NAS ligado e a IA ativa no servidor.
+  useEffect(() => {
+    let live = true;
+    void aiAvailable().then((ok) => {
+      if (live) setAiReady(ok && getSync().connected);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   // Aviso "está a demorar" durante a leitura.
   useEffect(() => {
     if (phase !== "reading") return;
@@ -110,6 +124,25 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
       // Código de barras primeiro (rápido); depois o texto, na mesma fotografia.
       const code = await decodeBarcode(canvas).catch(() => null);
       if (ctrl.signal.aborted) return;
+      if (aiReady) {
+        try {
+          setStage("ai");
+          const ai = await readBoxPhoto(await fileToJpegBase64(blob));
+          if (ctrl.signal.aborted) return;
+          if (ai.legible) {
+            const f = ai.fields;
+            const next: ParsedBox = { ...f, ean: code?.ean ?? (f.ean && validGtin(f.ean) ? f.ean : undefined), expiry: f.expiry ?? code?.expiry };
+            setBarcode(code);
+            setRaw("");
+            setFields(next);
+            setUnsure(new Set(ai.uncertain.filter((k): k is keyof ParsedBox => k in next)));
+            setPhase("review");
+            return;
+          }
+        } catch {
+          // sem chave, sem rede ou limite: usa o OCR no telemóvel
+        }
+      }
       setStage("text");
       const res = await recognizeImage(canvas, setProgress, { signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
@@ -287,7 +320,7 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
           ) : null}
           {manualButton("ghost")}
           <p className="text-base text-muted">
-            {m.scan.photoNotSaved} {m.scan.firstTimeNote}
+            {aiReady ? m.scan.photoSentNote : `${m.scan.photoNotSaved} ${m.scan.firstTimeNote}`}
           </p>
         </>
       ) : null}
@@ -357,7 +390,7 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
       {phase === "reading" ? (
         <>
           <div role="status" aria-live="polite" className="flex flex-col gap-2">
-            <p className="text-xl font-semibold">{stage === "barcode" ? m.scan.readingBarcode : m.scan.reading(Math.round(progress * 100))}</p>
+            <p className="text-xl font-semibold">{stage === "barcode" ? m.scan.readingBarcode : stage === "ai" ? m.scan.readingAi : m.scan.reading(Math.round(progress * 100))}</p>
             <div className="h-4 overflow-hidden rounded-full bg-gray-200">
               <div className="h-full bg-primary transition-all" style={{ width: `${Math.max(3, Math.round(progress * 100))}%` }} />
             </div>
@@ -435,7 +468,7 @@ export function BoxScanner({ onExtract, onClose }: { onExtract: (ocr: OcrExtract
           </div>
           <details className="rounded-2xl bg-canvas p-3">
             <summary className="min-h-12 cursor-pointer py-2 text-lg font-semibold">{m.scan.rawText}</summary>
-            <TextArea value={raw} readOnly rows={8} className="font-mono text-base" />
+            {raw ? <TextArea value={raw} readOnly rows={8} className="font-mono text-base" /> : null}
             {barcode ? <p className="mt-2 break-all font-mono text-sm text-muted">{barcode.format}: {barcode.raw}</p> : null}
           </details>
           <Button block className="min-h-16 text-xl" onClick={confirm}>

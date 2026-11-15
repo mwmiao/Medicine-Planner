@@ -77,7 +77,7 @@ describe("servidor do NAS: ficheiros da app", () => {
 
 describe("servidor do NAS: API de sincronização", () => {
   it("exige o código e controla conflitos", async () => {
-    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, sync: true, push: true });
+    expect(await (await fetch(`${base}/api/health`)).json()).toMatchObject({ ok: true, sync: true, push: true });
     expect((await fetch(`${base}/api/data`)).status).toBe(401);
     expect((await fetch(`${base}/api/data`, { headers: { Authorization: "Bearer errado" } })).status).toBe(401);
 
@@ -94,7 +94,7 @@ describe("servidor do NAS: API de sincronização", () => {
   it("sem SYNC_CODE a sincronização fica desligada", async () => {
     const off = await startServer({ SYNC_CODE: "" });
     try {
-      expect(await (await fetch(`${off.base}/api/health`)).json()).toEqual({ ok: true, sync: false, push: false });
+      expect(await (await fetch(`${off.base}/api/health`)).json()).toMatchObject({ ok: true, sync: false, push: false });
       expect((await fetch(`${off.base}/api/data`, { headers: auth })).status).toBe(503);
       expect(await syncAvailable(off.base)).toBe(false);
     } finally {
@@ -229,6 +229,46 @@ describe("ligação automática", () => {
     const s = await startServer({ SYNC_CODE: "", AUTO_CONNECT: "1" });
     try {
       expect((await get(s.base, "/api/connect")).status).toBe(404);
+    } finally {
+      s.proc.kill();
+    }
+  });
+});
+
+describe("rotas de IA", () => {
+  const post = (b: string, body: unknown, headers: Record<string, string> = auth) =>
+    fetch(`${b}/api/ai/leaflet`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+
+  it("sem ANTHROPIC_API_KEY: ai falso, 503 com código e 401 sem código", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, ANTHROPIC_API_KEY: "" });
+    try {
+      expect((await (await fetch(`${s.base}/api/health`)).json()).ai).toBe(false);
+      const r = await post(s.base, {});
+      expect(r.status).toBe(503);
+      expect((await r.json()).error).toBe("ai_disabled");
+      expect((await post(s.base, {}, {})).status).toBe(401);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("com chave: ai verdadeiro, 400 num pedido vazio e 404 num GET", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, ANTHROPIC_API_KEY: "test-key" });
+    try {
+      expect((await (await fetch(`${s.base}/api/health`)).json()).ai).toBe(true);
+      const r = await post(s.base, {});
+      expect(r.status).toBe(400);
+      expect((await r.json()).error).toBe("bad_request");
+      expect((await fetch(`${s.base}/api/ai/leaflet`, { headers: auth })).status).toBe(404);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
+  it("sem SYNC_CODE a IA fica desligada mesmo com chave", async () => {
+    const s = await startServer({ SYNC_CODE: "", ANTHROPIC_API_KEY: "test-key" });
+    try {
+      expect((await (await fetch(`${s.base}/api/health`)).json()).ai).toBe(false);
     } finally {
       s.proc.kill();
     }
