@@ -1,8 +1,8 @@
 {
-  "name": "Planeador de Medicação · 用药小助手",
-  "short_name": "Planeador",
-  "description": "Lembretes simples para tomar os medicamentos a horas.",
-  "lang": "pt-PT",
+  "name": "用药小助手 · Planeador de Medicação",
+  "short_name": "用药小助手",
+  "description": "按时吃药的简单提醒。",
+  "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

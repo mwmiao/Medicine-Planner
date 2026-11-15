@@ -294,7 +294,7 @@ export const zh: Messages = {
     testSent: "测试提醒已发送，几秒内会出现。",
     testFailed: "发送失败。请关闭提醒后再重新打开。",
     disable: "在这部手机上关闭提醒",
-    denied: "通知被关闭了。请到 iPhone「设置」→「通知」→「Planeador」打开。",
+    denied: "通知被关闭了。请到 iPhone「设置」→「通知」→「用药小助手」打开。",
     unsupported: "这部 iPhone 不支持本应用的提醒（需要 iOS 16.4 或更新版本）。请使用 iPhone 闹钟（见下面）。",
     failed: "无法打开提醒。请检查 NAS 连接后再试。",
     keepOpening: "请至少每个月打开一次应用，提醒才会继续安排。",
