@@ -21,7 +21,7 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | DONE (reviewed 2026-11-15; commit c4b5af5 on advisor/010-leaflet-chinese, stacked on 012, not merged; no real Anthropic call and no browser check) |
 | [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | DONE (reviewed 2026-11-15; commit bba4182 on advisor/011-box-photo-claude, stacked on 010 and 012, not merged; no real Anthropic call, no browser/iPhone check) |
 | [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | DONE (reviewed 2026-11-15; commit 5fb5fe1 on advisor/012-infarmed-ui, not merged; UI not checked in a browser) |
-| [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | TODO |
+| [014](014-auto-instructions-from-public-labels.md) | Instructions appear automatically in 简体中文 from a public-domain US drug label (openFDA); leaflet photo shows immediately | P1 | L | — | DONE (reviewed 2026-11-15, 2 revision rounds; commit 8f2ce0a on advisor/014-auto-instructions, not merged; verified against live openFDA data with Claude faked; no real Anthropic call, no browser/iPhone check) |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
