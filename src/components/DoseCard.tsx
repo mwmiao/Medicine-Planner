@@ -71,3 +71,23 @@ export function DoseCard({
     </article>
   );
 }
+
+export function DoneDoseRow({ dose, onUndo }: { dose: Dose; onUndo: (d: Dose) => void }) {
+  const { m } = useMessages();
+  const s = m.today.status;
+  const status = dose.view === "taken" ? s.taken(dose.log?.takenAt ? formatClock(dose.log.takenAt) : dose.time) : s.skipped;
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-white p-4 ring-1 ring-line">
+      <ColorDot color={dose.medication.color} size="h-5 w-5" />
+      <div className="min-w-0 flex-1">
+        <p className="text-lg font-bold break-words">{dose.time} · {dose.medication.name}</p>
+        <p className={`text-base font-semibold ${dose.view === "taken" ? "text-taken" : "text-muted"}`}>
+          {dose.view === "taken" ? "✓ " : ""}{status}
+        </p>
+      </div>
+      <Button variant="ghost" onClick={() => onUndo(dose)} className="min-h-12 px-2 text-base">
+        {m.today.undo}
+      </Button>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DoseCard } from "@/components/DoseCard";
+import { DoneDoseRow, DoseCard } from "@/components/DoseCard";
 import { toast } from "@/components/Toast";
 import { Card, LinkButton, Loading, Notice, PageTitle } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
@@ -11,7 +11,7 @@ import { formatDose } from "@/lib/format";
 import { useMedications, useTodayDoses } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
 import { useSyncAvailable, useSyncState } from "@/lib/sync";
-import { summarize, type Dose } from "@/lib/schedule";
+import { splitDoses, summarize, type Dose } from "@/lib/schedule";
 
 export default function TodayPage() {
   const { m, locale } = useMessages();
@@ -38,6 +38,7 @@ export default function TodayPage() {
   if (!doses || !meds) return <Loading label={m.common.loading} />;
 
   const { taken, total } = summarize(doses);
+  const { open, done } = splitDoses(doses);
 
   return (
     <>
@@ -84,18 +85,30 @@ export default function TodayPage() {
             </div>
             {taken === total ? <p className="mt-3 text-lg font-semibold text-taken">{m.today.allTaken}</p> : null}
           </div>
-          <ul className="flex flex-col gap-4">
-            {doses.map((d) => (
-              <li key={d.id}>
-                <DoseCard
-                  dose={d}
-                  onTake={setConfirming}
-                  onSnooze={(dose) => run(() => snoozeDose(dose.medication.id, dose.scheduledFor))}
-                  onUndo={setUndoing}
-                />
-              </li>
-            ))}
-          </ul>
+          {open.length > 0 ? (
+            <ul className="flex flex-col gap-4">
+              {open.map((d) => (
+                <li key={d.id}>
+                  <DoseCard
+                    dose={d}
+                    onTake={setConfirming}
+                    onSnooze={(dose) => run(() => snoozeDose(dose.medication.id, dose.scheduledFor))}
+                    onUndo={setUndoing}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {done.length > 0 ? (
+            <section className="mt-6" aria-labelledby="done-title">
+              <h2 id="done-title" className="mb-3 text-xl font-bold text-muted">{m.today.doneTitle} ({done.length})</h2>
+              <ul className="flex flex-col gap-3">
+                {done.map((d) => (
+                  <li key={d.id}><DoneDoseRow dose={d} onUndo={setUndoing} /></li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </>
       )}
 
@@ -115,7 +128,11 @@ export default function TodayPage() {
         onConfirm={() => {
           const d = confirming;
           setConfirming(null);
-          if (d) void run(() => markTaken(d.medication.id, d.scheduledFor));
+          if (d)
+            void run(async () => {
+              await markTaken(d.medication.id, d.scheduledFor);
+              toast(m.today.recorded);
+            });
         }}
       >
         {confirming ? (
