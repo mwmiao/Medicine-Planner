@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { BOX_COLORS, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { validateMedication, type MedicationInput, type ValidationErrors } from "@/lib/medications";
-import { bestSearchTerm } from "@/lib/ocr/parse";
 import { UNITS, type Frequency, type Medication, type OcrExtract, type Unit } from "@/lib/types";
 import { BoxScanner } from "./BoxScanner";
 import { InfarmedPanel } from "./InfarmedPanel";
@@ -43,7 +42,6 @@ export function MedicationForm({
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [scanning, setScanning] = useState(!!autoScan);
   const [showInfarmed, setShowInfarmed] = useState(false);
-  const [infarmedQuery, setInfarmedQuery] = useState({ q: "", auto: false, key: 0 });
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sameBox, setSameBox] = useState<Medication | null>(null);
@@ -73,16 +71,6 @@ export function MedicationForm({
       ean: ocr.ean ?? s.ean,
       unit: s.unit === "tablet" && ocr.form && /c[áa]psula/i.test(ocr.form) ? "capsule" : s.unit,
     }));
-    const term = bestSearchTerm(ocr) ?? ocr.ean;
-    if (term) {
-      setInfarmedQuery((q) => ({ q: term, auto: true, key: q.key + 1 }));
-      setShowInfarmed(true);
-    }
-  };
-
-  const openInfarmed = () => {
-    setInfarmedQuery((q) => ({ q: v.name || v.activeSubstance || "", auto: !!(v.name || v.activeSubstance), key: q.key + 1 }));
-    setShowInfarmed(true);
   };
 
   const submit = async () => {
@@ -129,9 +117,6 @@ export function MedicationForm({
         <Button className="min-h-16 text-xl" block onClick={() => setScanning(true)} disabled={scanning}>
           📷 {m.scan.button}
         </Button>
-        <Button variant="secondary" block onClick={openInfarmed}>
-          🔎 {m.infarmed.search}
-        </Button>
       </div>
 
       {scanning ? (
@@ -157,16 +142,13 @@ export function MedicationForm({
       {showInfarmed ? (
         <Card className="ring-2 ring-primary">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">🔎 {m.infarmed.title}</h2>
+            <h2 className="text-2xl font-bold">🔗 {m.infarmed.linkTitle}</h2>
             <button type="button" onClick={() => setShowInfarmed(false)} aria-label={m.common.close} className="min-h-12 min-w-12 text-3xl font-bold text-muted">
               ×
             </button>
           </div>
           <InfarmedPanel
-            key={infarmedQuery.key}
             input={v}
-            initialQuery={infarmedQuery.q}
-            autoSearch={infarmedQuery.auto}
             onApply={(next) => {
               setV(next);
               setShowInfarmed(false);
@@ -371,6 +353,12 @@ export function MedicationForm({
           ))}
         </div>
       </fieldset>
+
+      {!v.infarmed?.matched && !showInfarmed ? (
+        <Button variant="ghost" onClick={() => setShowInfarmed(true)} className="self-start px-0">
+          🔗 {m.infarmed.linkTitle} ({m.common.optional})
+        </Button>
+      ) : null}
 
       {notice ? <Notice tone="error">{notice}</Notice> : null}
       <Button type="submit" variant="success" block className="min-h-16 text-xl" disabled={saving}>
