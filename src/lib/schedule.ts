@@ -70,6 +70,12 @@ export function summarize(doses: Dose[]): { taken: number; total: number } {
   return { taken: doses.filter((d) => d.view === "taken").length, total: doses.length };
 }
 
+/** Tomas por fazer (mantém a ordem por hora) e tomas já concluídas (tomadas ou não tomadas). */
+export function splitDoses(doses: Dose[]): { open: Dose[]; done: Dose[] } {
+  const finished = (d: Dose) => d.view === "taken" || d.view === "skipped";
+  return { open: doses.filter((d) => !finished(d)), done: doses.filter(finished) };
+}
+
 /** Próxima toma futura (não tomada) de um medicamento, procurando até 60 dias à frente. */
 export function nextDose(med: Medication, logs: DoseLog[], now: Date = new Date()): string | undefined {
   const byId = new Map(logs.map((l) => [l.id, l]));

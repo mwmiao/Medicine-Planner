@@ -36,6 +36,8 @@ export const zh: Messages = {
     everyNDays: (n: number) => (n === 1 ? "每天" : `每 ${n} 天一次`),
   },
   today: {
+    recorded: "已记录 ✓",
+    doneTitle: "已完成",
     title: "今天",
     summary: (taken: number, total: number) => `已吃 ${taken} 次，共 ${total} 次`,
     allTaken: "很好！今天的药都吃完了。",

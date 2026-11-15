@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markTaken, snoozeDose } from "@/lib/doses";
-import { generateDoses, nextDose, summarize } from "@/lib/schedule";
+import { generateDoses, nextDose, splitDoses, summarize } from "@/lib/schedule";
 import type { Medication } from "@/lib/types";
 import { input, testDb } from "./helpers";
 
@@ -65,5 +65,27 @@ describe("marcar uma toma", () => {
     const logs = await db.doseLogs.toArray();
     expect(generateDoses(meds, logs, SUNDAY, new Date(2026, 9, 25, 8, 20))[0].view).toBe("snoozed");
     expect(generateDoses(meds, logs, SUNDAY, new Date(2026, 9, 25, 8, 26))[0].view).toBe("due");
+  });
+});
+
+describe("separar tomas por fazer e concluídas", () => {
+  it("põe as tomas por fazer primeiro (por hora) e as concluídas à parte", async () => {
+    const db = testDb();
+    const meds = [med("a", { name: "A", times: ["08:00", "12:00", "20:00"] })];
+    const now = new Date(2026, 9, 25, 12, 5);
+    await markTaken("a", "2026-10-25T08:00", now, db);
+    const doses = generateDoses(meds, await db.doseLogs.toArray(), SUNDAY, now);
+    const { open, done } = splitDoses(doses);
+    expect(open.map((d) => d.time)).toEqual(["12:00", "20:00"]);
+    expect(done.map((d) => d.time)).toEqual(["08:00"]);
+  });
+
+  it("trata 'não tomada' como concluída e não perde nenhuma toma", () => {
+    const meds = [med("a", { times: ["08:00", "20:00"] })];
+    const doses = generateDoses(meds, [], SUNDAY, SUNDAY);
+    const skipped = [{ ...doses[0], view: "skipped" as const }, doses[1]];
+    const { open, done } = splitDoses(skipped);
+    expect(done).toHaveLength(1);
+    expect(open).toHaveLength(1);
   });
 });

@@ -42,6 +42,8 @@ export const pt = {
     everyNDays: (n: number) => (n === 1 ? "Todos os dias" : `De ${n} em ${n} dias`),
   },
   today: {
+    recorded: "Registado ✓",
+    doneTitle: "Concluídas",
     title: "Hoje",
     summary: (taken: number, total: number) => `${taken} de ${total} tomas feitas`,
     allTaken: "Muito bem! Já tomou tudo o que tinha para hoje.",
