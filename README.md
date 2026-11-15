@@ -88,6 +88,7 @@ Alternativas: Netlify ou Cloudflare Pages (pasta de publicação: `out`, comando
 - Para expor o NAS à internet, prefira um túnel ou proxy com controlo de acesso (ex.: Cloudflare Tunnel com Cloudflare Access).
 - Com `AUTO_CONNECT=1` o código de sincronização deixa de ser um segredo para quem chega ao endereço da app; não o ative num endereço público sem controlo de acesso.
 - Com `ANTHROPIC_API_KEY`, as páginas do folheto fotografadas ou coladas são enviadas à Anthropic para tradução; a fotografia da caixa, quando a IA está ativa, também é enviada à Anthropic e não é guardada. O pedido exige o código de sincronização; a chave nunca sai do servidor.
+- Para as instruções automáticas, o **nome do medicamento** (sem dados pessoais) é enviado à Anthropic e ao openFDA (`api.fda.gov`).
 
 ## Guardar os dados no NAS (sincronização)
 
@@ -153,6 +154,8 @@ Variáveis do contentor:
 | `AUTO_CONNECT=1` | Opcional; a app liga-se sozinha ao NAS (o servidor entrega o código em `GET /api/connect`, sem o utilizador escrever nada). **Quem conseguir abrir o endereço da app recebe o código e todos os dados** — use só se o endereço for privado (rede de casa, VPN ou atrás de Cloudflare Access) |
 | `ANTHROPIC_API_KEY` | Opcional; liga a tradução do folheto para chinês e a leitura da fotografia da caixa. A chave fica só no servidor. Os textos/fotografias do folheto são enviados à Anthropic; não contêm dados pessoais. |
 | `AI_MODEL` | Opcional; modelo a usar (por omissão `claude-sonnet-5-5`). Há um limite de 60 pedidos por hora. |
+
+**Instruções automáticas em chinês:** quando um medicamento ainda não tem informação e a IA está ativa, o servidor pede à Claude a substância ativa (nome em inglês), vai buscar a etiqueta pública da mesma substância à base de dados de domínio público **openFDA** (`api.fda.gov`) e a Claude resume-a em chinês simplificado. É uma etiqueta dos EUA, **não** o folheto português: a app avisa disso e mostra a ligação à fonte (DailyMed). Se não houver etiqueta, não se inventa nada; a app sugere fotografar o folheto. O indice.eu e o INFOMED **não** são usados de propósito (termos de utilização / robots).
 
 **Rede:** o NAS precisa de acesso à internet **de saída** (para o serviço de push da Apple). O telemóvel precisa de chegar ao NAS por **HTTPS** para ativar os lembretes e sincronizar; o envio dos lembretes não precisa que o telemóvel esteja em casa.
 

@@ -265,6 +265,20 @@ describe("rotas de IA", () => {
     }
   });
 
+  it("instruções: 400 com corpo vazio e 401 sem código", async () => {
+    const s = await startServer({ SYNC_CODE: CODE, ANTHROPIC_API_KEY: "test-key" });
+    try {
+      const url = `${s.base}/api/ai/instructions`;
+      const send = (headers: Record<string, string>) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: "{}" });
+      const r = await send(auth);
+      expect(r.status).toBe(400);
+      expect((await r.json()).error).toBe("bad_request");
+      expect((await send({})).status).toBe(401);
+    } finally {
+      s.proc.kill();
+    }
+  });
+
   it("sem SYNC_CODE a IA fica desligada mesmo com chave", async () => {
     const s = await startServer({ SYNC_CODE: "", ANTHROPIC_API_KEY: "test-key" });
     try {

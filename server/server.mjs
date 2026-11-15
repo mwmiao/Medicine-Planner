@@ -193,6 +193,7 @@ async function handleAi(req, res, url) {
   const routes = {
     "POST /api/ai/leaflet": (b) => ai.leaflet(b),
     "POST /api/ai/box": (b) => ai.box(b),
+    "POST /api/ai/instructions": (b) => ai.instructions(b),
   };
   const handler = routes[`${req.method} ${url.pathname}`];
   if (!handler) return sendJson(res, 404, { error: "not_found" });

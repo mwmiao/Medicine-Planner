@@ -1,14 +1,33 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { aiAvailable, findInstructions } from "@/lib/ai";
 import { describeFrequency, formatDose, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
+import { getSync, useSyncState } from "@/lib/sync";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
 import { BulletListEditor } from "./BulletListEditor";
 import { LeafletTranslator } from "./LeafletTranslator";
 import { Button, ExternalLink, Notice, Select } from "./ui";
 
-const SOURCES: InfoSource[] = ["infarmed", "leaflet", "box", "manual"];
+const SOURCES: InfoSource[] = ["infarmed", "leaflet", "box", "manual", "web"];
+
+const attemptKey = (id: string) => `mp.autoInfo.${id}`;
+const wasTried = (id: string) => {
+  try {
+    return localStorage.getItem(attemptKey(id)) !== null;
+  } catch {
+    return false; // sem armazenamento conta como "ainda não tentado"
+  }
+};
+const setTried = (id: string, tried: boolean) => {
+  try {
+    if (tried) localStorage.setItem(attemptKey(id), "1");
+    else localStorage.removeItem(attemptKey(id));
+  } catch {
+    // sem armazenamento: o useRef limita a uma tentativa por montagem
+  }
+};
 
 function Block({ title, badge, children }: { title: string; badge?: ReactNode; children: ReactNode }) {
   return (
@@ -44,11 +63,62 @@ function SourceBadge({ source }: { source: InfoSource }) {
 
 export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (info: MedicalInfo) => Promise<void> }) {
   const { m, locale } = useMessages();
-  const [open, setOpen] = useState(false);
+  useSyncState(); // volta a desenhar quando a ligação ao NAS muda
+  const [open, setOpen] = useState(!!med.medicalInfo);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<MedicalInfo>(() => med.medicalInfo ?? { source: "manual", lastReviewedAt: "" });
+  const [auto, setAuto] = useState<"idle" | "searching" | "notFound" | "failed">("idle");
+  const autoStarted = useRef(false);
 
   const info = med.medicalInfo;
+  const connected = getSync().connected;
+
+  /** Procura as instruções numa etiqueta pública e guarda-as logo, sem passar pelo editor. */
+  const autoSearch = async () => {
+    setTried(med.id, true);
+    setAuto("searching");
+    setOpen(true);
+    try {
+      const r = await findInstructions({ name: med.name, activeSubstance: med.activeSubstance, strength: med.dosage, form: med.pharmaceuticalForm });
+      if (!r.found) {
+        setAuto("notFound");
+        return;
+      }
+      const next: MedicalInfo = {
+        source: "web",
+        translatedBy: "ai",
+        original: r.en,
+        originalLanguage: "en",
+        lastReviewedAt: new Date().toISOString(),
+      };
+      if (r.sourceUrl) next.sourceUrl = r.sourceUrl;
+      if (r.sourceName) next.sourceName = r.sourceName;
+      for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
+      await onSave(next);
+      setAuto("idle");
+    } catch {
+      setAuto("failed");
+    }
+  };
+
+  useEffect(() => {
+    if (info || !connected || autoStarted.current || wasTried(med.id)) return;
+    autoStarted.current = true;
+    let alive = true;
+    let launched = false;
+    void aiAvailable().then((ok) => {
+      if (alive && ok) {
+        launched = true;
+        void autoSearch();
+      } else autoStarted.current = false;
+    });
+    return () => {
+      alive = false;
+      if (!launched) autoStarted.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [info, connected, med.id]);
+
   const has = (k: SectionKey) => (info?.[k] ?? []).some((l) => l.trim());
 
   const startEdit = () => {
@@ -64,6 +134,9 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
     }
     if (draft.translatedBy) cleaned.translatedBy = draft.translatedBy;
     if (draft.original) cleaned.original = draft.original;
+    if (draft.sourceUrl) cleaned.sourceUrl = draft.sourceUrl;
+    if (draft.sourceName) cleaned.sourceName = draft.sourceName;
+    if (draft.originalLanguage) cleaned.originalLanguage = draft.originalLanguage;
     await onSave(cleaned);
     setEditing(false);
   };
@@ -124,7 +197,32 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
           ) : (
             <Block title={m.info.officialTitle} badge={info ? <SourceBadge source={info.source} /> : null}>
               {!info ? <p className="mb-3 text-lg text-muted">{m.info.noInfo}</p> : null}
-              {info?.translatedBy === "ai" ? (
+              {!info && auto === "searching" ? (
+                <div className="mb-3">
+                  <Notice>{m.info.autoSearching}</Notice>
+                </div>
+              ) : null}
+              {!info && (auto === "notFound" || auto === "failed") ? (
+                <div className="mb-3 flex flex-col gap-3">
+                  <Notice tone={auto === "failed" ? "error" : "warn"}>{auto === "failed" ? m.info.autoFailed : m.info.autoNotFound}</Notice>
+                  <Button
+                    variant="secondary"
+                    block
+                    onClick={() => {
+                      setTried(med.id, false);
+                      void autoSearch();
+                    }}
+                  >
+                    {m.info.autoRetry}
+                  </Button>
+                </div>
+              ) : null}
+              {info?.source === "web" ? (
+                <div className="mb-3 flex flex-col gap-3">
+                  <Notice tone="warn">{m.info.webNotice}</Notice>
+                  {info.sourceUrl ? <ExternalLink href={info.sourceUrl}>{m.info.sourceLink}: {info.sourceName ?? info.sourceUrl}</ExternalLink> : null}
+                </div>
+              ) : info?.translatedBy === "ai" ? (
                 <div className="mb-3">
                   <Notice tone="warn">{m.info.translatedNotice}</Notice>
                 </div>
@@ -176,10 +274,9 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
               <div className="mt-4 flex flex-col gap-3">
                 <LeafletTranslator
                   onDone={(r) => {
-                    const next: MedicalInfo = { source: "leaflet", translatedBy: "ai", original: r.pt, lastReviewedAt: "" };
+                    const next: MedicalInfo = { source: "leaflet", translatedBy: "ai", original: r.pt, originalLanguage: "pt", lastReviewedAt: new Date().toISOString() };
                     for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
-                    setDraft(next);
-                    setEditing(true);
+                    void onSave(next).then(() => setOpen(true));
                   }}
                 />
                 <Button variant="secondary" block onClick={startEdit}>
