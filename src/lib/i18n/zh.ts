@@ -180,6 +180,8 @@ export const zh: Messages = {
     photoNotSaved: "照片不会被保存，只在这部手机上识别。",
     reading: (pct: number) => `正在识别文字… ${pct}%`,
     readingBarcode: "正在查找条形码…",
+    readingAi: "正在识别药盒…",
+    photoSentNote: "照片不会被保存。它会发到家里的 NAS，由 Claude（Anthropic）识别，里面没有个人信息。",
     firstTimeNote: "第一次使用需要网络，下载文字识别程序。",
     cameraDenied: "没有相机权限。您可以选择照片，或在 iPhone 设置里允许使用相机。",
     cameraUnavailable: "无法打开相机。请用“拍照”按钮，或从相册选择照片。",

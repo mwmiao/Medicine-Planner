@@ -192,6 +192,8 @@ export const pt = {
     photoNotSaved: "A fotografia não é guardada. É lida só neste telemóvel.",
     reading: (pct: number) => `A ler o texto… ${pct}%`,
     readingBarcode: "A procurar o código de barras…",
+    readingAi: "A ler a caixa…",
+    photoSentNote: "A fotografia não é guardada. É enviada ao NAS da família e lida pela Claude (Anthropic); não tem dados pessoais.",
     firstTimeNote: "Da primeira vez é preciso internet para descarregar o leitor de texto.",
     cameraDenied: "A câmara não tem autorização. Pode escolher uma fotografia ou permitir a câmara nas Definições do iPhone.",
     cameraUnavailable: "Não foi possível abrir a câmara. Use o botão «Tirar fotografia» ou escolha uma fotografia da galeria.",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiAvailable, translateLeaflet } from "@/lib/ai";
+import { aiAvailable, readBoxPhoto, translateLeaflet } from "@/lib/ai";
 import { HttpError } from "@/lib/sync/nas";
 
 const result = { legible: true, zh: { purpose: ["用于退烧。"] }, pt: { purpose: ["Para a febre."] } };
@@ -40,6 +40,31 @@ describe("cliente de IA", () => {
 
   it("uma resposta 503 rejeita com HttpError 503", async () => {
     const err = await translateLeaflet({ text: "x".repeat(30) }, { fetchFn: fakeFetch({ error: "ai_disabled" }, 503).fn }, "c").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    expect((err as HttpError).status).toBe(503);
+  });
+});
+
+describe("cliente de IA (caixa)", () => {
+  const image = { mediaType: "image/jpeg", data: "QUJD" };
+  const box = { legible: true, fields: { name: "Ben-u-ron" }, uncertain: ["name"] };
+
+  it("readBoxPhoto envia o código, o caminho e a imagem", async () => {
+    const f = fakeFetch(box);
+    const r = await readBoxPhoto(image, { fetchFn: f.fn }, "abc-code");
+    expect(r).toEqual(box);
+    expect(f.calls[0].url).toBe("/api/ai/box");
+    expect(f.calls[0].init.method).toBe("POST");
+    expect((f.calls[0].init.headers as Record<string, string>).Authorization).toBe("Bearer abc-code");
+    expect(JSON.parse(String(f.calls[0].init.body))).toEqual({ image });
+  });
+
+  it("sem código rejeita com not_connected", async () => {
+    await expect(readBoxPhoto(image, { fetchFn: fakeFetch(box).fn }, null)).rejects.toThrow("not_connected");
+  });
+
+  it("uma resposta 503 rejeita com HttpError 503", async () => {
+    const err = await readBoxPhoto(image, { fetchFn: fakeFetch({ error: "ai_disabled" }, 503).fn }, "c").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect((err as HttpError).status).toBe(503);
   });

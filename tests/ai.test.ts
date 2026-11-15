@@ -89,3 +89,38 @@ describe("serviço de IA (folheto → chinês)", () => {
     expect((await ai.leaflet(body)).status).toBe(200);
   });
 });
+
+describe("serviço de IA (fotografia da caixa)", () => {
+  const photo = { image: { mediaType: "image/jpeg", data: "QUJD" } };
+  const reply = (o: unknown) => fakeFetch(anthropicReply(JSON.stringify(o)));
+
+  it("devolve os campos lidos e quais estão duvidosos", async () => {
+    const f = reply({ legible: true, name: " Ben-u-ron ", activeSubstance: "Paracetamol", strength: "500 mg", form: "Comprimido", packCount: "20", expiry: null, manufacturer: "Bial", ean: "5601234567890", uncertain: ["strength", "banana"] });
+    const r = await createAi({ apiKey: "k", fetchFn: f.fn }).box(photo);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ legible: true, fields: { name: "Ben-u-ron", activeSubstance: "Paracetamol", strength: "500 mg", form: "Comprimido", packCount: "20", manufacturer: "Bial", ean: "5601234567890" }, uncertain: ["strength"] });
+    const sent = JSON.parse(String(f.calls[0].init.body));
+    expect(sent.messages[0].content[0]).toMatchObject({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "QUJD" } });
+  });
+
+  it("descarta um EAN que não tem 13 algarismos e corta textos longos", async () => {
+    const r = await createAi({ apiKey: "k", fetchFn: reply({ legible: true, name: "X".repeat(300), ean: "12345" }).fn }).box(photo);
+    expect(r.body.fields.ean).toBeUndefined();
+    expect(r.body.fields.name.length).toBeLessThanOrEqual(120);
+  });
+
+  it("caixa ilegível: sem campos", async () => {
+    const r = await createAi({ apiKey: "k", fetchFn: reply({ legible: false, name: "inventado" }).fn }).box(photo);
+    expect(r.body).toEqual({ legible: false, fields: {}, uncertain: [] });
+  });
+
+  it("valida o pedido e partilha o limite por hora com o folheto", async () => {
+    const ok = reply({ legible: true, name: "A" });
+    const ai = createAi({ apiKey: "k", fetchFn: ok.fn, hourlyLimit: 1 });
+    expect((await ai.box({})).status).toBe(400);
+    expect((await ai.box({ image: { mediaType: "image/gif", data: "QUJD" } })).status).toBe(400);
+    expect(ok.calls).toHaveLength(0);
+    expect((await ai.box(photo)).status).toBe(200);
+    expect((await ai.leaflet({ text: "x".repeat(50) })).status).toBe(429);
+  });
+});

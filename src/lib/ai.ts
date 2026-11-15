@@ -29,6 +29,18 @@ export async function translateLeaflet(input: LeafletInput, io: NasIo = {}, code
   return (await res.json()) as LeafletResult;
 }
 
+export type BoxResult = {
+  legible: boolean;
+  fields: Partial<Record<"name" | "activeSubstance" | "strength" | "form" | "packCount" | "expiry" | "manufacturer" | "ean", string>>;
+  uncertain: string[];
+};
+
+export async function readBoxPhoto(image: { mediaType: string; data: string }, io: NasIo = {}, code: string | null = getSync().code): Promise<BoxResult> {
+  if (!code) throw new Error("not_connected");
+  const res = await nasRequest(code, "POST", "/api/ai/box", { image }, io);
+  return (await res.json()) as BoxResult;
+}
+
 /** Reduz a fotografia (lado maior `maxSide`) e converte-a em JPEG base64, para o envio ser leve. */
 export async function fileToJpegBase64(file: Blob, maxSide = 1600, quality = 0.8): Promise<{ mediaType: "image/jpeg"; data: string }> {
   const url = URL.createObjectURL(file);
