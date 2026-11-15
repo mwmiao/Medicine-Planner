@@ -91,6 +91,7 @@ export const pt = {
     empty: "Ainda não adicionou nenhum medicamento.",
     add: "Adicionar medicamento",
     nextDose: "Próxima toma",
+    overdueToday: (time: string) => `Hoje às ${time}: ainda não tomou`,
     noNextDose: "Sem tomas marcadas",
     notFound: "Este medicamento não foi encontrado.",
     schedule: "Horário e dose",

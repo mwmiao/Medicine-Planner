@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { describeFrequency, formatDateTimeShort, formatDose } from "@/lib/format";
 import { useMedications, useNow } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
-import { nextDose } from "@/lib/schedule";
+import { nextDose, overdueDoseToday } from "@/lib/schedule";
 
 export default function MedicationsPage() {
   const { m, locale } = useMessages();
@@ -36,6 +36,7 @@ export default function MedicationsPage() {
         <ul className="flex flex-col gap-3">
           {meds.map((med) => {
             const next = nextDose(med, logs, now);
+            const late = overdueDoseToday(med, logs, now);
             return (
               <li key={med.id}>
                 <Link
@@ -52,6 +53,7 @@ export default function MedicationsPage() {
                     <p className="text-base text-muted">
                       {describeFrequency(med, m)} · {med.times.join(", ")}
                     </p>
+                    {late ? <p className="mt-1 text-lg font-bold text-amber-900">{m.meds.overdueToday(late.slice(11, 16))}</p> : null}
                     <p className="mt-1 text-lg font-semibold text-primary">
                       {m.meds.nextDose}: {next ? formatDateTimeShort(next, locale) : m.meds.noNextDose}
                     </p>

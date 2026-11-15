@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markTaken, snoozeDose } from "@/lib/doses";
-import { generateDoses, nextDose, splitDoses, summarize } from "@/lib/schedule";
+import { generateDoses, nextDose, overdueDoseToday, splitDoses, summarize } from "@/lib/schedule";
 import type { Medication } from "@/lib/types";
 import { input, testDb } from "./helpers";
 
@@ -40,6 +40,38 @@ describe("gerar as tomas de hoje", () => {
     const m = med("a", { times: ["08:00", "20:00"] });
     expect(nextDose(m, [], new Date(2026, 9, 25, 12, 0))).toBe("2026-10-25T20:00");
     expect(nextDose(m, [], new Date(2026, 9, 25, 21, 0))).toBe("2026-10-26T08:00");
+  });
+});
+
+describe("overdueDoseToday", () => {
+  const m = med("a", { times: ["08:00"] });
+
+  it("não indica nada dentro da janela de 30 minutos", () => {
+    expect(overdueDoseToday(m, [], new Date(2026, 9, 25, 8, 20))).toBeUndefined();
+  });
+
+  it("indica a toma de hoje já passada da janela", () => {
+    expect(overdueDoseToday(m, [], new Date(2026, 9, 25, 9, 0))).toBe("2026-10-25T08:00");
+  });
+
+  it("ignora a toma já tomada", async () => {
+    const db = testDb();
+    const now = new Date(2026, 9, 25, 9, 0);
+    await markTaken("a", "2026-10-25T08:00", now, db);
+    expect(overdueDoseToday(m, await db.doseLogs.toArray(), now)).toBeUndefined();
+  });
+
+  it("ignora medicamentos não agendados para hoje", () => {
+    const other = med("b", { times: ["08:00"], frequency: { type: "specificDays", days: [1, 2] } });
+    expect(overdueDoseToday(other, [], new Date(2026, 9, 25, 9, 0))).toBeUndefined();
+  });
+
+  it("indica a primeira toma por registar quando há várias", async () => {
+    const db = testDb();
+    const two = med("c", { times: ["08:00", "20:00"] });
+    const now = new Date(2026, 9, 25, 21, 0);
+    await markTaken("c", "2026-10-25T08:00", now, db);
+    expect(overdueDoseToday(two, await db.doseLogs.toArray(), now)).toBe("2026-10-25T20:00");
   });
 });
 

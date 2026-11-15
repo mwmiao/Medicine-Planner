@@ -93,3 +93,17 @@ export function nextDose(med: Medication, logs: DoseLog[], now: Date = new Date(
   }
   return undefined;
 }
+
+/** Primeira toma de hoje por registar cuja hora já passou (além da janela). */
+export function overdueDoseToday(med: Medication, logs: DoseLog[], now: Date = new Date()): string | undefined {
+  if (!isScheduledOn(med, now)) return undefined;
+  const key = toDateKey(now);
+  const byId = new Map(logs.map((l) => [l.id, l]));
+  for (const time of [...new Set(med.times)].sort()) {
+    const at = `${key}T${time}`;
+    const log = byId.get(doseId(med.id, at));
+    if (log?.status === "taken" || log?.status === "skipped") continue;
+    if (parseLocalDateTime(at).getTime() + 60_000 * DUE_WINDOW_MINUTES < now.getTime()) return at;
+  }
+  return undefined;
+}
