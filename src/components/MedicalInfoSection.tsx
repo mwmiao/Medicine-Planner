@@ -5,6 +5,7 @@ import { describeFrequency, formatDose, formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
 import { BulletListEditor } from "./BulletListEditor";
+import { LeafletTranslator } from "./LeafletTranslator";
 import { Button, ExternalLink, Notice, Select } from "./ui";
 
 const SOURCES: InfoSource[] = ["infarmed", "leaflet", "box", "manual"];
@@ -61,6 +62,8 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
       const lines = (draft[k] ?? []).map((l) => l.trim()).filter(Boolean);
       if (lines.length) cleaned[k] = lines;
     }
+    if (draft.translatedBy) cleaned.translatedBy = draft.translatedBy;
+    if (draft.original) cleaned.original = draft.original;
     await onSave(cleaned);
     setEditing(false);
   };
@@ -90,6 +93,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
           {editing ? (
             <Block title={m.info.edit}>
               <div className="flex flex-col gap-5">
+                {draft.translatedBy === "ai" ? <Notice tone="warn">{m.info.translateReview}</Notice> : null}
                 <label className="flex flex-col gap-1.5">
                   <span className="text-lg font-bold">{m.info.sourceLabel}</span>
                   <Select value={draft.source} onChange={(e) => setDraft((d) => ({ ...d, source: e.target.value as InfoSource }))}>
@@ -120,6 +124,11 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
           ) : (
             <Block title={m.info.officialTitle} badge={info ? <SourceBadge source={info.source} /> : null}>
               {!info ? <p className="mb-3 text-lg text-muted">{m.info.noInfo}</p> : null}
+              {info?.translatedBy === "ai" ? (
+                <div className="mb-3">
+                  <Notice tone="warn">{m.info.translatedNotice}</Notice>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-4">
                 {MEDICAL_INFO_SECTIONS.map((k) => {
                   // "Se se esquecer" e "avisos" mostram sempre a orientação segura.
@@ -147,13 +156,32 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
                   );
                 })}
               </div>
+              {info?.translatedBy === "ai" && MEDICAL_INFO_SECTIONS.some((k) => (info.original?.[k] ?? []).some((l) => l.trim())) ? (
+                <details className="mt-3 text-lg">
+                  <summary className="min-h-12 cursor-pointer font-semibold">{m.info.showOriginal}</summary>
+                  {MEDICAL_INFO_SECTIONS.filter((k) => (info.original?.[k] ?? []).some((l) => l.trim())).map((k) => (
+                    <div key={k} className="mt-2">
+                      <h4 className="text-lg font-bold">{m.info.sections[k]}</h4>
+                      <Bullets items={(info.original?.[k] ?? []).filter((l) => l.trim())} />
+                    </div>
+                  ))}
+                </details>
+              ) : null}
               {info ? (
                 <p className="mt-3 text-base text-muted">
-                  {info.source === "manual" ? m.info.notOfficialNote : m.info.copiedOfficialNote}
+                  {info.translatedBy === "ai" ? null : info.source === "manual" ? m.info.notOfficialNote : m.info.copiedOfficialNote}
                   {info.lastReviewedAt ? ` ${m.info.lastEdited(formatIsoDate(info.lastReviewedAt, locale))}` : ""}
                 </p>
               ) : null}
-              <div className="mt-4">
+              <div className="mt-4 flex flex-col gap-3">
+                <LeafletTranslator
+                  onDone={(r) => {
+                    const next: MedicalInfo = { source: "leaflet", translatedBy: "ai", original: r.pt, lastReviewedAt: "" };
+                    for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
+                    setDraft(next);
+                    setEditing(true);
+                  }}
+                />
                 <Button variant="secondary" block onClick={startEdit}>
                   ✏️ {m.info.edit}
                 </Button>

@@ -35,6 +35,9 @@ export type MedicalInfo = {
   storage?: string[];
   source: InfoSource;
   lastReviewedAt: string;
+  // tradução automática; `original` guarda o texto em português do folheto
+  translatedBy?: "ai";
+  original?: Partial<Record<MedicalInfoSection, string[]>>;
 };
 
 export const MEDICAL_INFO_SECTIONS = [
