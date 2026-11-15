@@ -285,6 +285,7 @@ export const zh: Messages = {
     keepOpening: "请至少每个月打开一次应用，提醒才会继续安排。",
     pushTitle: (name: string) => `💊 ${name}`,
     pushBody: (dose: string, time: string) => `${dose} — ${time}。点一下打开。`,
+    pushFollowUp: (dose: string, time: string) => `这次药还没有记录：${dose} — ${time}。点一下打开。`,
     testTitle: "💊 测试提醒",
     testBody: "提醒功能正常。",
   },
