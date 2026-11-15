@@ -124,3 +124,73 @@ describe("alterações durante a sincronização", () => {
     expect(nas.store.data?.medications.length).toBe(1);
   });
 });
+
+/** Junta ao NAS falso o endereço /api/connect (código ou 404). */
+function withConnect(nas: ReturnType<typeof fakeNas>, code: string | null) {
+  let calls = 0;
+  const fetchFn = ((url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).endsWith("/api/connect")) {
+      calls++;
+      return Promise.resolve(code ? Response.json({ code }) : Response.json({ error: "not_found" }, { status: 404 }));
+    }
+    return nas.fetchFn(url, init);
+  }) as typeof fetch;
+  return { fetchFn, calls: () => calls };
+}
+
+describe("ligação automática ao NAS", () => {
+  it("liga-se sozinha quando o servidor entrega o código", async () => {
+    const nas = fakeNas();
+    const io = withConnect(nas, CODE);
+    const kv = memoryKv();
+    const engine = new SyncEngine(testDb(), kv, { fetchFn: io.fetchFn });
+    expect(engine.getState().status).toBe("off");
+    await engine.autoConnect();
+    expect(engine.getState().status).toBe("idle");
+    expect(kv.get("mp.sync.code")).toBe(CODE);
+  });
+
+  it("não faz nada se o servidor não oferece o código (404)", async () => {
+    const io = withConnect(fakeNas(), null);
+    const engine = new SyncEngine(testDb(), memoryKv(), { fetchFn: io.fetchFn });
+    await engine.autoConnect();
+    expect(engine.getState().status).toBe("off");
+  });
+
+  it("depois de desligar à mão não volta a ligar sozinha, mas a ligação manual limpa isso", async () => {
+    const nas = fakeNas();
+    const io = withConnect(nas, CODE);
+    const engine = new SyncEngine(testDb(), memoryKv(), { fetchFn: io.fetchFn });
+    await engine.autoConnect();
+    engine.disconnect();
+    const before = io.calls();
+    await engine.autoConnect();
+    expect(engine.getState().status).toBe("off");
+    expect(io.calls()).toBe(before); // nem sequer pergunta ao servidor
+    expect(await engine.connect(CODE)).toBe("idle");
+    engine.disconnect();
+    expect(engine.getState().status).toBe("off");
+  });
+
+  it("um código guardado que deixou de servir é substituído pelo novo", async () => {
+    const nas = fakeNas();
+    const io = withConnect(nas, CODE);
+    const kv = memoryKv();
+    kv.set("mp.sync.code", "codigo-antigo");
+    const engine = new SyncEngine(testDb(), kv, { fetchFn: io.fetchFn });
+    await engine.syncNow();
+    expect(engine.getState().status).toBe("unauthorized");
+    await engine.autoConnect();
+    expect(engine.getState().status).toBe("idle");
+    expect(kv.get("mp.sync.code")).toBe(CODE);
+  });
+
+  it("já ligada e a funcionar, não pergunta ao servidor", async () => {
+    const nas = fakeNas();
+    const io = withConnect(nas, CODE);
+    const engine = new SyncEngine(testDb(), memoryKv(), { fetchFn: io.fetchFn });
+    await engine.connect(CODE);
+    await engine.autoConnect();
+    expect(io.calls()).toBe(0);
+  });
+});

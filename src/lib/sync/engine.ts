@@ -20,6 +20,7 @@ const K = {
   force: "mp.sync.force",
   tombstones: "mp.sync.tombstones",
   lastSyncedAt: "mp.sync.lastSyncedAt",
+  autoOff: "mp.sync.autoOff",
 } as const;
 
 type Remote = { revision: number; updatedAt: string | null; data: unknown };
@@ -55,6 +56,8 @@ export class SyncEngine {
   private state: SyncState;
   private listeners = new Set<() => void>();
   private running: Promise<void> | null = null;
+  private autoRunning: Promise<void> | null = null;
+  private autoUnavailable = false;
   private again = false;
   private applying = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -157,13 +160,44 @@ export class SyncEngine {
     this.kv.set(K.code, code.trim());
     this.kv.remove(K.revision); // primeira vez: junta em vez de substituir
     this.kv.remove(K.force);
+    this.kv.remove(K.autoOff); // uma ligação manual volta a permitir a automática
     await this.syncNow();
     return this.state.status;
   }
 
   disconnect(): void {
     for (const k of [K.code, K.revision, K.force, K.lastSyncedAt]) this.kv.remove(k);
+    this.kv.set(K.autoOff, "1");
     this.setState({ status: "off", lastSyncedAt: undefined });
+  }
+
+  /**
+   * NAS com AUTO_CONNECT=1: pede o código ao servidor e liga-se sem o utilizador escrever nada.
+   * Nunca lança erro. Não faz nada se já está ligada e a funcionar, se o servidor não oferece o
+   * código, ou se a ligação foi desfeita à mão.
+   */
+  autoConnect(): Promise<void> {
+    if (this.connected && this.state.status !== "unauthorized") return Promise.resolve();
+    if (this.kv.get(K.autoOff) === "1" || this.autoUnavailable) return Promise.resolve();
+    this.autoRunning ??= this.tryAutoConnect().finally(() => {
+      this.autoRunning = null;
+    });
+    return this.autoRunning;
+  }
+
+  private async tryAutoConnect(): Promise<void> {
+    const { baseUrl = "", fetchFn = (...a: Parameters<typeof fetch>) => fetch(...a) } = this.io;
+    try {
+      const res = await fetchFn(`${baseUrl}/api/connect`, { cache: "no-store" });
+      if (!res.ok) {
+        if (res.status === 404) this.autoUnavailable = true; // não oferece: não voltar a perguntar nesta sessão
+        return;
+      }
+      const body: unknown = await res.json();
+      if (isObj(body) && typeof body.code === "string" && body.code.trim()) await this.connect(body.code);
+    } catch {
+      // sem rede ou resposta inválida: tenta outra vez mais tarde
+    }
   }
 
   schedule(ms: number): void {
