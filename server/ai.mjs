@@ -187,6 +187,11 @@ const FORM_WORDS = [
   [/col[ií]rio|ophthalmic/, "ophthalmic"],
   [/supositor|suppositor/, "suppositor"],
 ];
+/** A dosagem só conta como número inteiro: "5mg" não casa com "25mg", "2.5mg" nem "5mgs". */
+function hasStrength(normText, token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  return new RegExp(`(?<![\\d.])${escaped}(?![\\da-z])`).test(normText);
+}
 const MATCH_FIELDS = ["how_supplied", "dosage_forms_and_strengths", "description", "package_label_principal_display_panel"];
 
 function pickLabel(results, ingredients, strength, form) {
@@ -216,7 +221,7 @@ function pickLabel(results, ingredients, strength, form) {
     const norm = normStrength(text);
     const lower = text.toLowerCase();
     const rank = [
-      strengths.some((x) => norm.includes(x)) ? 1 : 0,
+      strengths.some((x) => hasStrength(norm, x)) ? 1 : 0,
       formHints.length && formHints.some((w) => lower.includes(w)) ? 1 : 0,
       scoreLabel(label),
     ];

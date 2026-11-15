@@ -302,6 +302,41 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     expect(sentToClaude(f)).toContain("Suspension 750 mg per 5 mL");
   });
 
+  describe("dosagem só por número inteiro", () => {
+    const base = { indications_and_usage: ["x"], openfda: { generic_name: ["AMLODIPINE"], substance_name: ["AMLODIPINE BESYLATE"] } };
+    const rich = { dosage_and_administration: ["d"], contraindications: ["c"], warnings_and_cautions: ["w"], adverse_reactions: ["a"] };
+    const pick = async (strength: string, results: unknown[], innName = "amlodipine") => {
+      const f = routedFetch({ anthropic: [inn(innName), anthropicReply(JSON.stringify(out))], fda: { results } });
+      const r = await createAi({ apiKey: "k", fetchFn: f.fn }).instructions({ name: "X", strength });
+      return r.body.sourceUrl as string;
+    };
+    const id = (n: number) => `${String(n).repeat(8)}-${String(n).repeat(4)}-${String(n).repeat(4)}-${String(n).repeat(4)}-${String(n).repeat(12)}`;
+
+    it("5 mg não casa com 25 mg, mesmo que essa etiqueta tenha mais secções", async () => {
+      const l25 = { ...base, ...rich, set_id: id(1), how_supplied: ["Tablets 25 mg"] };
+      const l5 = { ...base, set_id: id(2), how_supplied: ["Tablets 5 mg"] };
+      expect(await pick("5 mg", [l25, l5])).toContain(id(2));
+      expect(await pick("5 mg", [l5, l25])).toContain(id(2));
+    });
+
+    it("5 mg não casa com 2.5 mg, 15 mg, 50 mg nem 5 mgs (sem bónus)", async () => {
+      const l5 = { ...base, set_id: id(2), how_supplied: ["Tablets 5 mg"] };
+      for (const wrong of ["2.5 mg", "15 mg", "50 mg", "5 mgs"]) {
+        const other = { ...base, ...rich, set_id: id(3), how_supplied: [`Tablets ${wrong}`] };
+        expect(await pick("5 mg", [other, l5])).toContain(id(2));
+      }
+    });
+
+    it("750 mg/5 ml, e escrito de formas diferentes, casa com o mesmo texto", async () => {
+      const a = { ...base, ...rich, set_id: id(4), how_supplied: ["Tablets 250 mg"] };
+      const b = { ...base, set_id: id(5), how_supplied: ["Suspension 750 mg per 5 mL"] };
+      expect(await pick("750 mg per 5 mL", [a, b])).toContain(id(5));
+      expect(await pick("750 mg/5ml", [a, b])).toContain(id(5));
+      const c = { ...base, set_id: id(6), how_supplied: ["Suspension 750 mg/5 mL"] };
+      expect(await pick("750 mg per 5 mL", [a, c])).toContain(id(6));
+    });
+  });
+
   it("a marca é ignorada: o pedido de substância traz a instrução e a substância ativa", async () => {
     const f = routedFetch({ anthropic: [inn("atovaquone"), anthropicReply(JSON.stringify(out))], fda: { results: [label] } });
     await createAi({ apiKey: "k", fetchFn: f.fn }).instructions(input);
