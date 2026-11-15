@@ -13,7 +13,7 @@ ENV NODE_ENV=production PORT=1380 STATIC_DIR=/app/out DATA_DIR=/data
 WORKDIR /app/server
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
-COPY server/server.mjs server/push.mjs ./
+COPY server/*.mjs ./
 COPY --from=build /app/out /app/out
 RUN mkdir -p /data && chown node:node /data
 VOLUME /data
