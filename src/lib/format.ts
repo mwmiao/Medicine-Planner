@@ -34,6 +34,29 @@ export function formatIsoDate(iso: string, locale: Locale): string {
   return formatDate(d, locale, { day: "numeric", month: "long", year: "numeric" });
 }
 
+/** Nome do formato (ex.: "Suspensão oral") em chinês; fora do chinês ou sem correspondência devolve o texto original. */
+export function formatPharmaceuticalForm(form: string, locale: Locale): string {
+  if (locale !== "zh") return form;
+  const f = form.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const table: [RegExp, string][] = [
+    [/suspens/, "口服混悬液"],
+    [/solucao oral/, "口服溶液"],
+    [/xarope/, "糖浆"],
+    [/gota/, "滴剂"],
+    [/capsul/, "胶囊"],
+    [/comprimid|tablet/, "片剂"],
+    [/drag/, "糖衣片"],
+    [/pomada/, "软膏"],
+    [/creme/, "乳膏"],
+    [/\bgel\b/, "凝胶"],
+    [/supositor/, "栓剂"],
+    [/colirio/, "滴眼液"],
+    [/injet|inject/, "注射剂"],
+    [/\bpo\b|po para/, "散剂"],
+  ];
+  return table.find(([re]) => re.test(f))?.[1] ?? form;
+}
+
 export function formatClock(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;

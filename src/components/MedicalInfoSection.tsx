@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { aiAvailable, findInstructions } from "@/lib/ai";
-import { formatIsoDate } from "@/lib/format";
+import { formatIsoDate, formatPharmaceuticalForm } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { getSync, useSyncState } from "@/lib/sync";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
@@ -310,19 +310,20 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
           ) : null}
 
           {med.ocr ? (
-            <Block title={m.info.ocrTitle} badge={<SourceBadge source="box" />}>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-lg">
+            <details className="rounded-2xl border-2 border-line p-3 text-lg">
+              <summary className="min-h-12 cursor-pointer text-lg font-bold">{m.info.ocrTitle}</summary>
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-lg">
                 {(["name", "activeSubstance", "strength", "form", "packCount", "expiry", "manufacturer"] as const)
                   .filter((k) => med.ocr?.[k])
                   .map((k) => (
                     <div key={k} className="contents">
                       <dt className="text-muted">{m.scan.fields[k]}</dt>
-                      <dd className="font-semibold">{med.ocr?.[k]}</dd>
+                      <dd className="font-semibold">{k === "form" ? formatPharmaceuticalForm(med.ocr?.[k] ?? "", locale) : med.ocr?.[k]}</dd>
                     </div>
                   ))}
               </dl>
               <p className="mt-2 text-base text-muted">{formatIsoDate(med.ocr.capturedAt, locale)}</p>
-            </Block>
+            </details>
           ) : null}
 
           {med.notes ? (
