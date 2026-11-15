@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { aiAvailable, findInstructions } from "@/lib/ai";
-import { describeFrequency, formatDose, formatIsoDate } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { getSync, useSyncState } from "@/lib/sync";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
@@ -154,15 +154,11 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
             <strong>{m.info.disclaimer}</strong>
           </Notice>
 
-          <Block title={m.info.doctorTitle}>
-            <Bullets
-              items={[
-                `${m.meds.dose}: ${formatDose(med, m)}`,
-                `${describeFrequency(med, m)} — ${med.times.join(", ")}`,
-                ...(med.instructions ? [med.instructions] : []),
-              ]}
-            />
-          </Block>
+          {med.instructions ? (
+            <Block title={m.info.doctorTitle}>
+              <Bullets items={[med.instructions]} />
+            </Block>
+          ) : null}
 
           {editing ? (
             <Block title={m.info.edit}>
@@ -233,28 +229,39 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
                   // "Se se esquecer" e "avisos" mostram sempre a orientação segura.
                   if (!has(k) && k !== "missedDose" && k !== "warnings") return null;
                   const items = (info?.[k] ?? []).filter((l) => l.trim());
-                  return (
-                    <div key={k}>
-                      <h4 className="text-lg font-bold">{m.info.sections[k]}</h4>
-                      {k === "missedDose" ? (
-                        <Bullets items={items.length ? [...items, m.info.noDouble] : [m.info.missedDefault]} />
-                      ) : k === "sideEffects" ? (
-                        <>
-                          <Bullets items={items} />
-                          <p className="mt-1 text-base text-muted">{m.info.sideEffectsAdvice}</p>
-                        </>
-                      ) : k === "warnings" ? (
-                        <>
-                          {items.length ? <Bullets items={items} /> : null}
-                          <p className="mt-2 rounded-xl bg-danger-soft p-3 text-lg font-semibold text-red-950">🚨 {m.info.urgent}</p>
-                        </>
-                      ) : (
+                  if (k === "purpose" || k === "howToTake") {
+                    return (
+                      <div key={k}>
+                        <h4 className="text-lg font-bold">{m.info.sections[k]}</h4>
                         <Bullets items={items} />
-                      )}
-                    </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <details key={k} className="rounded-2xl border-2 border-line p-3 text-lg">
+                      <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-2 text-lg font-bold">
+                        <span>{m.info.sections[k]}</span>
+                        <span className="text-base font-semibold text-muted">{m.info.tapToOpen}</span>
+                      </summary>
+                      <div className="mt-2">
+                        {k === "missedDose" ? (
+                          <Bullets items={items.length ? [...items, m.info.noDouble] : [m.info.missedDefault]} />
+                        ) : k === "sideEffects" ? (
+                          <>
+                            <Bullets items={items} />
+                            <p className="mt-1 text-base text-muted">{m.info.sideEffectsAdvice}</p>
+                          </>
+                        ) : k === "warnings" ? (
+                          items.length ? <Bullets items={items} /> : null
+                        ) : (
+                          <Bullets items={items} />
+                        )}
+                      </div>
+                    </details>
                   );
                 })}
               </div>
+              <p className="mt-4 rounded-xl bg-danger-soft p-3 text-lg font-semibold text-red-950">🚨 {m.info.urgent}</p>
               {info?.translatedBy === "ai" && MEDICAL_INFO_SECTIONS.some((k) => (info.original?.[k] ?? []).some((l) => l.trim())) ? (
                 <details className="mt-3 text-lg">
                   <summary className="min-h-12 cursor-pointer font-semibold">{m.info.showOriginal}</summary>

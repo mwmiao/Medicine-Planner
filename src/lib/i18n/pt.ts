@@ -283,6 +283,7 @@ export const pt = {
     translateReview: "Reveja e corrija o texto antes de guardar.",
     translatedNotice: "Tradução automática: confirme com o farmacêutico. O original em português está guardado.",
     showOriginal: "Ver o texto original",
+    tapToOpen: "Toque para abrir",
     autoSearching: "A procurar as instruções em chinês…",
     autoNotFound: "Não encontrámos uma fonte pública para este medicamento. Fotografe o folheto da caixa para obter as instruções.",
     autoFailed: "Não foi possível procurar agora. Tente outra vez mais tarde.",

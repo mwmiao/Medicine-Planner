@@ -268,6 +268,7 @@ export const zh: Messages = {
     translateReview: "请先检查并修改，再保存。",
     translatedNotice: "机器翻译，仅供参考，请与药剂师确认。葡萄牙语原文已保存。",
     showOriginal: "查看原文",
+    tapToOpen: "点一下打开",
     autoSearching: "正在查找中文说明…",
     autoNotFound: "没有找到这个药的公开资料。请拍下药盒里的说明书，就能得到中文说明。",
     autoFailed: "现在无法查找，请稍后再试。",
