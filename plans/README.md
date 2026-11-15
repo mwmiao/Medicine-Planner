@@ -18,6 +18,9 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [007](007-today-list-open-first.md) | Today: doses left first, finished ones compact, "recorded" message | P1 | M | — | DONE (reviewed 2026-11-15; commit c1be1aa on advisor/007-today-open-first, not merged; on-screen layout/toast/undo flow not checked in a browser) |
 | [008](008-follow-up-reminder.md) | Second push reminder 15 min later if the dose is still unrecorded | P1 | M | — | DONE (reviewed 2026-11-15; commit e8564e8 on advisor/008-follow-up-reminder, not merged; real-iPhone check of two pushes 15 min apart and of cancel-on-record not run) |
 | [009](009-auto-connect-nas.md) | Opt-in auto-connect to the NAS (`AUTO_CONNECT=1`); remove the Today connect button | P1 | M | — | DONE (reviewed 2026-11-15; commit 830077b on advisor/009-auto-connect-nas, not merged; no iPhone/browser check of silent connection) |
+| [010](010-leaflet-to-chinese-instructions.md) | Photograph/paste the Portuguese leaflet -> instructions in 简体中文 (Claude on the NAS) | P1 | L | — | TODO |
+| [011](011-box-photo-read-by-claude.md) | Box photo read by Claude, on-phone OCR kept as fallback | P1 | M | 010 | TODO |
+| [012](012-infarmed-ui-fewer-buttons.md) | Remove the INFARMED search that can never work; one optional link step | P1 | M | — | TODO |
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
@@ -37,6 +40,9 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - Plan 008 assumes a 15-minute gap and one follow-up per dose (`FOLLOW_UP_MINUTES`).
 - Not planned, needs a product call: default text size "大" for new installs; a Chinese or bilingual home-screen icon name (`appleWebApp.title` / manifest `short_name` are "Planeador"; applies only after re-adding the icon); a setup checklist card for the family.
 
+- 010–012 (added 2026-11-15, commit `e851e1b`, from the INFARMED/Chinese-instructions review): suggested order 012, 010, 011. 011 depends on 010 (it reuses `server/ai.mjs`, `handleAi` and `src/lib/ai.ts`). 010 and 012 both edit `src/lib/i18n/pt.ts`/`zh.ts`; run them one at a time.
+- 010 and 011 need the owner's `ANTHROPIC_API_KEY` on the NAS to do anything; without it the app behaves as before (health reports `ai:false`, the new buttons stay hidden, the scanner uses OCR).
+
 ## Verification baseline
 
 `npm test` (Vitest, 66 tests at planning time; 74 tests in 13 files on `34ffff1`) and `npm run typecheck` both pass. There is no lint script.
@@ -51,6 +57,11 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - Syncing language/text size to the NAS: unnecessary once plan 005 lands, and it would touch the sync engine fixed in 001/002.
 - Rewording the Chinese copy: reviewed, already clear and polite.
 - Error toasts disappearing after 3.5 s (`src/components/Toast.tsx`): low value, not planned.
+
+- Scraping or auto-fetching INFOMED (leaflets/records): `extranet.infarmed.pt/robots.txt` is `Disallow: /`, the site is a stateful JSF form with no API, and dados.gov.pt has no INFARMED medicine dataset. Do not build on it.
+- EMA ePI API as the instruction source: public and keyless, but only covers EU-centrally-authorised products in its pilot (most generics are missing).
+- Unofficial third-party leaflet sites (e.g. medikamio.com) and Chinese NMPA leaflets: terms unchecked / different products and doses.
+- DeepL or Safari Translate instead of Claude: owner chose Claude; DeepL gives literal text only and Portuguese to Simplified Chinese support was not confirmed.
 
 ## Not planned (optional, low value)
 
