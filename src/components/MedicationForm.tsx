@@ -180,16 +180,6 @@ export function MedicationForm({
         <TextInput id="name" value={v.name} onChange={(e) => set("name", e.target.value)} placeholder={m.form.namePlaceholder} invalid={!!errors.name} autoComplete="off" />
       </Field>
 
-      <Field label={m.form.activeSubstance} hint={m.common.optional} htmlFor="substance">
-        <TextInput
-          id="substance"
-          value={v.activeSubstance ?? ""}
-          onChange={(e) => set("activeSubstance", e.target.value)}
-          placeholder={m.form.activeSubstancePlaceholder}
-          autoComplete="off"
-        />
-      </Field>
-
       <div className="grid grid-cols-1 gap-3">
         <Field label={m.form.quantity} htmlFor="qty" error={err("quantity")}>
           <div id="qty" role="group" aria-label={m.form.quantity} className="flex items-center gap-3">
@@ -225,20 +215,6 @@ export function MedicationForm({
         </Field>
         {doseUnitLooksWrong(v) ? <Notice tone="warn">{m.form.checkDose}</Notice> : null}
       </div>
-
-      <Field label={m.form.dosage} hint={m.common.optional} htmlFor="dosage">
-        <TextInput id="dosage" value={v.dosage} onChange={(e) => set("dosage", e.target.value)} placeholder={m.form.dosagePlaceholder} autoComplete="off" />
-      </Field>
-
-      <Field label={m.scan.fields.ean} hint={m.common.optional} htmlFor="ean">
-        <TextInput
-          id="ean"
-          inputMode="numeric"
-          value={v.ean ?? ""}
-          onChange={(e) => set("ean", e.target.value.replace(/\D/g, "") || undefined)}
-          autoComplete="off"
-        />
-      </Field>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-lg font-semibold">{m.form.frequency}</legend>
@@ -339,40 +315,72 @@ export function MedicationForm({
         </div>
       </Field>
 
-      <Field label={m.form.notes} hint={m.common.optional} htmlFor="notes">
-        <TextArea id="notes" value={v.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
-      </Field>
-
-      <fieldset>
-        <legend className="mb-2 text-lg font-semibold">{m.form.color}</legend>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            aria-pressed={!v.color}
-            onClick={() => set("color", undefined)}
-            className={`min-h-14 rounded-full border-2 px-4 text-base font-semibold ${!v.color ? "border-primary bg-primary-soft" : "border-line bg-white"}`}
-          >
-            {m.form.noColor}
-          </button>
-          {BOX_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              aria-pressed={v.color === c.value}
-              aria-label={c[locale]}
-              onClick={() => set("color", c.value)}
-              className={`h-14 w-14 rounded-full ${v.color === c.value ? "ring-4 ring-ink ring-offset-2" : ""}`}
-              style={{ background: c.value }}
+      <details className="rounded-3xl bg-white shadow-sm ring-1 ring-line">
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-5 text-xl font-bold [&::-webkit-details-marker]:hidden">
+          {m.form.moreInfo}
+          <span aria-hidden className="text-3xl text-muted">+</span>
+        </summary>
+        <div className="flex flex-col gap-5 px-5 pb-5">
+          <Field label={m.form.activeSubstance} hint={m.common.optional} htmlFor="substance">
+            <TextInput
+              id="substance"
+              value={v.activeSubstance ?? ""}
+              onChange={(e) => set("activeSubstance", e.target.value)}
+              placeholder={m.form.activeSubstancePlaceholder}
+              autoComplete="off"
             />
-          ))}
-        </div>
-      </fieldset>
+          </Field>
 
-      {!v.infarmed?.matched && !showInfarmed ? (
-        <Button variant="ghost" onClick={() => setShowInfarmed(true)} className="self-start px-0">
-          🔗 {m.infarmed.linkTitle} ({m.common.optional})
-        </Button>
-      ) : null}
+          <Field label={m.form.dosage} hint={m.common.optional} htmlFor="dosage">
+            <TextInput id="dosage" value={v.dosage} onChange={(e) => set("dosage", e.target.value)} placeholder={m.form.dosagePlaceholder} autoComplete="off" />
+          </Field>
+
+          <Field label={m.scan.fields.ean} hint={m.common.optional} htmlFor="ean">
+            <TextInput
+              id="ean"
+              inputMode="numeric"
+              value={v.ean ?? ""}
+              onChange={(e) => set("ean", e.target.value.replace(/\D/g, "") || undefined)}
+              autoComplete="off"
+            />
+          </Field>
+
+          <Field label={m.form.notes} hint={m.common.optional} htmlFor="notes">
+            <TextArea id="notes" value={v.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
+          </Field>
+
+          <fieldset>
+            <legend className="mb-2 text-lg font-semibold">{m.form.color}</legend>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                aria-pressed={!v.color}
+                onClick={() => set("color", undefined)}
+                className={`min-h-14 rounded-full border-2 px-4 text-base font-semibold ${!v.color ? "border-primary bg-primary-soft" : "border-line bg-white"}`}
+              >
+                {m.form.noColor}
+              </button>
+              {BOX_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  aria-pressed={v.color === c.value}
+                  aria-label={c[locale]}
+                  onClick={() => set("color", c.value)}
+                  className={`h-14 w-14 rounded-full ${v.color === c.value ? "ring-4 ring-ink ring-offset-2" : ""}`}
+                  style={{ background: c.value }}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          {!v.infarmed?.matched && !showInfarmed ? (
+            <Button variant="ghost" onClick={() => setShowInfarmed(true)} className="self-start px-0">
+              🔗 {m.infarmed.linkTitle} ({m.common.optional})
+            </Button>
+          ) : null}
+        </div>
+      </details>
 
       {notice ? <Notice tone="error">{notice}</Notice> : null}
       <Button type="submit" variant="success" block className="min-h-16 text-xl" disabled={saving}>
