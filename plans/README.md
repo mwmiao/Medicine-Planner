@@ -25,6 +25,16 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [015](015-least-typing-add-medicine.md) | Box photo reads straight into the form (no preview/review taps when confident); − / + pill stepper; unit from form | P1 | M | — | DONE (reviewed 2026-11-15; commit 012ae84 on advisor/015-least-typing, merged into main (branch deleted); layout not checked in a browser, AI scan path needs the owner's real key) |
 | [016](016-ai-working-indicator.md) | "Claude AI is working" indicator (moving bar + timer) for box reading, instruction lookup and leaflet translation | P2 | S | — | DONE (reviewed 2026-11-15; commit ec8185a on advisor/016-ai-working, merged into main (branch deleted); visual not checked on a phone) |
 
+| [018](018-liquid-dose-unit-check.md) | Warn when a liquid medicine's dose unit is mg (box strength mistaken for dose) | P1 | S | — | DONE (reviewed 2026-11-15; commit 9ff4ee1 on advisor/018-liquid-dose-unit, off main; not yet merged; no browser/phone check) |
+| [019](019-medicine-page-short-first.md) | Medicine page: purpose + how-to-take open, other sections folded, 112 line always visible | P1 | S | — | DONE (reviewed 2026-11-15; commit f4604df on advisor/019-medicine-page-short, stacked on 018; not yet merged; no browser/phone check) |
+| [020](020-chinese-app-name.md) | Home-screen icon name, page title and notification fallback in Chinese | P2 | S | — | DONE (reviewed 2026-11-15; commit 02fac94 on advisor/020-chinese-app-name, off main; not yet merged; no browser/phone check) |
+| [021](021-remove-header-language-switch.md) | Remove the PT / 中文 switch from the header (stays in Settings) | P2 | S | — | DONE (reviewed 2026-11-15; commit ff00e12 on advisor/021-remove-header-language, off main; not yet merged; no browser/phone check) |
+| [022](022-hide-technical-leftovers.md) | Hide INFARMED notice, fold scan data, show dosage form in Chinese | P2 | S | 019 | DONE (reviewed 2026-11-15; commit 01cd415 on advisor/022-hide-technical, stacked on 019; not yet merged; no browser/phone check) |
+| [023](023-chinese-drug-name.md) | Chinese generic drug name under the title (from the same Claude call) | P2 | M | 019, 022 | DONE (reviewed 2026-11-15; commit 630c450 on advisor/023-chinese-drug-name, stacked on 022; not yet merged; no browser/phone check) |
+| [024](024-overdue-dose-in-lists.md) | List and detail page show "today 08:00: not taken yet" for overdue doses | P3 | S | — | DONE (reviewed 2026-11-15; commit a6f920e on advisor/024-overdue-dose, stacked on 023; not yet merged; no browser/phone check) |
+
+Plans 018–024 were added on 2026-11-15 against commit `43fad38` from a live-site walkthrough as the Chinese-speaking user. Suggested order: 018, 019, 022, 023, then 020, 021, 024 (any order). 018, 022, 023 and 024 all edit `src/app/medications/view/page.tsx`, and 019, 022 and 023 edit `MedicalInfoSection.tsx`: run one at a time. 018, 019, 022, 023 and 024 add keys to `pt.ts`/`zh.ts`.
+
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
