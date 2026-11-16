@@ -52,6 +52,7 @@ export const pt = {
   today: {
     recorded: "Registado ✓",
     doneTitle: "Concluídas",
+    laterTitle: "Mais tarde hoje",
     title: "Hoje",
     summary: (taken: number, total: number) => `${taken} de ${total} tomas feitas`,
     allTaken: "Muito bem! Já tomou tudo o que tinha para hoje.",

@@ -96,3 +96,16 @@ export function DoneDoseRow({ dose, onUndo }: { dose: Dose; onUndo: (d: Dose) =>
     </div>
   );
 }
+
+export function UpcomingDoseRow({ dose }: { dose: Dose }) {
+  const { m } = useMessages();
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-white p-4 ring-1 ring-line">
+      <ColorDot color={dose.medication.color} size="h-5 w-5" />
+      <div className="min-w-0 flex-1">
+        <p className="text-lg font-bold break-words">{dose.time} · {dose.medication.name}</p>
+        <p className="text-base text-muted">{formatDose(dose.medication, m)} · {m.today.status.upcoming}</p>
+      </div>
+    </div>
+  );
+}

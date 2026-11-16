@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DoneDoseRow, DoseCard } from "@/components/DoseCard";
+import { DoneDoseRow, DoseCard, UpcomingDoseRow } from "@/components/DoseCard";
 import { toast } from "@/components/Toast";
 import { Card, LinkButton, Loading, Notice, PageTitle } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
@@ -11,7 +11,7 @@ import { formatDose } from "@/lib/format";
 import { useMedications, useTodayDoses } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
 import { useSyncState } from "@/lib/sync";
-import { splitDoses, summarize, type Dose } from "@/lib/schedule";
+import { splitDoses, splitOpenDoses, summarize, type Dose } from "@/lib/schedule";
 
 export default function TodayPage() {
   const { m, locale } = useMessages();
@@ -40,6 +40,7 @@ export default function TodayPage() {
 
   const { taken, total } = summarize(doses);
   const { open, done } = splitDoses(doses);
+  const { actionable, later } = splitOpenDoses(open);
 
   return (
     <>
@@ -77,9 +78,9 @@ export default function TodayPage() {
               {taken === total ? <p className="mt-3 text-lg font-semibold text-taken">{m.today.allTaken}</p> : null}
             </div>
           ) : null}
-          {open.length > 0 ? (
+          {actionable.length > 0 ? (
             <ul className="flex flex-col gap-4">
-              {open.map((d) => (
+              {actionable.map((d) => (
                 <li key={d.id}>
                   <DoseCard
                     dose={d}
@@ -91,6 +92,16 @@ export default function TodayPage() {
                 </li>
               ))}
             </ul>
+          ) : null}
+          {later.length > 0 ? (
+            <section className="mt-6" aria-labelledby="later-title">
+              <h2 id="later-title" className="mb-3 text-xl font-bold text-muted">{m.today.laterTitle}</h2>
+              <ul className="flex flex-col gap-3">
+                {later.map((d) => (
+                  <li key={d.id}><UpcomingDoseRow dose={d} /></li>
+                ))}
+              </ul>
+            </section>
           ) : null}
           {done.length > 0 ? (
             <section className="mt-6" aria-labelledby="done-title">
