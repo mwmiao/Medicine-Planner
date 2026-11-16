@@ -33,6 +33,11 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [023](023-chinese-drug-name.md) | Chinese generic drug name under the title (from the same Claude call) | P2 | M | 019, 022 | DONE (reviewed 2026-11-15; commit 630c450 on advisor/023-chinese-drug-name, stacked on 022; not yet merged; no browser/phone check) |
 | [024](024-overdue-dose-in-lists.md) | List and detail page show "today 08:00: not taken yet" for overdue doses | P3 | S | — | DONE (reviewed 2026-11-15; commit a6f920e on advisor/024-overdue-dose, stacked on 023; not yet merged; no browser/phone check) |
 
+| [025](025-new-medicine-no-earlier-doses.md) | A newly added medicine does not show today's earlier doses as overdue | P2 | S | — | TODO |
+| [026](026-skip-dose-today.md) | "这次不吃" button: record a dose as skipped instead of falsely tapping "taken" | P2 | S–M | — | TODO |
+
+Plans 025–026 were added on 2026-11-16 against commit `97ba274` from a walkthrough as the Chinese-speaking user. Run 025 first, then 026, one at a time (both edit `src/lib/schedule.ts` and `tests/schedule.test.ts`; 026 also adds keys to `pt.ts`/`zh.ts`).
+
 Plans 018–024 were added on 2026-11-15 against commit `43fad38` from a live-site walkthrough as the Chinese-speaking user. Suggested order: 018, 019, 022, 023, then 020, 021, 024 (any order). 018, 022, 023 and 024 all edit `src/app/medications/view/page.tsx`, and 019, 022 and 023 edit `MedicalInfoSection.tsx`: run one at a time. 018, 019, 022, 023 and 024 add keys to `pt.ts`/`zh.ts`.
 
 Plans 005–008 were added on 2026-11-15 against commit `34ffff1` (focus: usability for the Chinese-speaking elderly user). Suggested order: 005, 007, 008, 006.
