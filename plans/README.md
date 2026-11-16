@@ -90,3 +90,13 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 ## Not planned (optional, low value)
 
 - Server-side shape validation for `PUT /api/data`; lint/format tooling and tracking `claude.md`.
+
+## Plans 027–029 (UX simplification walkthrough, 2026-11-16, against commit `3a00dfb`)
+
+| Plan | Title | Priority | Effort | Depends on | Status |
+|------|-------|----------|--------|------------|--------|
+| [027](027-today-buttons-current-dose-only.md) | Today: action buttons only on the dose due now and the next one; later doses as one-line rows | P2 | S–M | — | DONE (reviewed 2026-11-16; commit df725a7 on advisor/027-today-current-dose-only, off main; not yet merged; typecheck + 175 tests re-run in worktree; no browser/phone check) |
+| [028](028-form-fold-optional-fields.md) | Add/edit form: fold substance, strength, barcode, notes, colour and INFARMED link under "更多信息（可不填）" | P2 | S | — | DONE (reviewed 2026-11-16; commit c3a272e on advisor/028-form-fold-optional, off 3a00dfb; not yet merged; typecheck, 170 tests and build re-run in worktree; no browser/phone check) |
+| [029](029-clearer-not-taken-labels.md) | "Skipped" and "missed" doses get different words (已跳过 / 忘了吃) | P3 | S | — | DONE (reviewed 2026-11-16; commit on advisor/029-clearer-labels, off 3a00dfb; not yet merged; diff is exactly the 4 string values; executor ran typecheck + 170 tests, I re-checked the diff and greps only) |
+
+027 and 029 and 028 touch `pt.ts`/`zh.ts` (027 adds `today.laterTitle`, 028 adds `form.moreInfo`, 029 edits two existing values): run one at a time. Not planned (owner decision): default text size 大 for new installs; a single add-medicine entry point instead of two buttons. Considered and rejected: removing the "did you take it?" confirmation (a false "taken" is the dangerous error); removing the app-name header (cosmetic).
