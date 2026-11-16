@@ -49,6 +49,11 @@ export function doseView(scheduledFor: string, log: DoseLog | undefined, now: Da
   return "overdue";
 }
 
+/** A toma já tinha passado (além da janela) quando o medicamento foi adicionado: nunca esteve em atraso. */
+function predatesMedication(med: Medication, scheduledFor: string): boolean {
+  return parseLocalDateTime(scheduledFor).getTime() + 60_000 * DUE_WINDOW_MINUTES < new Date(med.createdAt).getTime();
+}
+
 /** Gera as tomas de um dia a partir dos medicamentos e dos registos guardados, ordenadas por hora. */
 export function generateDoses(meds: Medication[], logs: DoseLog[], date: Date, now: Date = new Date()): Dose[] {
   const key = toDateKey(date);
@@ -60,6 +65,7 @@ export function generateDoses(meds: Medication[], logs: DoseLog[], date: Date, n
       const scheduledFor = `${key}T${time}`;
       const id = doseId(med.id, scheduledFor);
       const log = byId.get(id);
+      if (!log && predatesMedication(med, scheduledFor)) continue;
       doses.push({ id, medication: med, scheduledFor, time, log, view: doseView(scheduledFor, log, now) });
     }
   }
@@ -103,6 +109,7 @@ export function overdueDoseToday(med: Medication, logs: DoseLog[], now: Date = n
     const at = `${key}T${time}`;
     const log = byId.get(doseId(med.id, at));
     if (log?.status === "taken" || log?.status === "skipped") continue;
+    if (!log && predatesMedication(med, at)) continue;
     if (parseLocalDateTime(at).getTime() + 60_000 * DUE_WINDOW_MINUTES < now.getTime()) return at;
   }
   return undefined;

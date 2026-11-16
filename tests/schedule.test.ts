@@ -121,3 +121,36 @@ describe("separar tomas por fazer e concluídas", () => {
     expect(open).toHaveLength(1);
   });
 });
+
+describe("medicamento acabado de adicionar", () => {
+  const now = new Date(2026, 9, 25, 14, 5);
+  const m = med("n", { times: ["08:00", "20:00"], createdAt: new Date(2026, 9, 25, 14, 0).toISOString() });
+
+  it("não gera tomas que já tinham passado quando foi adicionado", () => {
+    expect(generateDoses([m], [], now, now).map((d) => d.time)).toEqual(["20:00"]);
+  });
+
+  it("não marca essas tomas como em atraso", () => {
+    expect(overdueDoseToday(m, [], now)).toBeUndefined();
+  });
+
+  it("mantém a toma dentro da janela da criação", () => {
+    const w = med("w", { times: ["08:00"], createdAt: new Date(2026, 9, 25, 8, 10).toISOString() });
+    const n = new Date(2026, 9, 25, 8, 12);
+    const doses = generateDoses([w], [], n, n);
+    expect(doses).toHaveLength(1);
+    expect(doses[0].view).toBe("due");
+  });
+
+  it("mostra a toma anterior se já existe registo", async () => {
+    const db = testDb();
+    await markTaken("n", "2026-10-25T08:00", now, db);
+    const doses = generateDoses([m], await db.doseLogs.toArray(), now, now);
+    expect(doses.find((d) => d.time === "08:00")?.view).toBe("taken");
+  });
+
+  it("no dia seguinte gera todas as tomas", () => {
+    const next = new Date(2026, 9, 26, 7, 0);
+    expect(generateDoses([m], [], next, next).map((d) => d.time)).toEqual(["08:00", "20:00"]);
+  });
+});
