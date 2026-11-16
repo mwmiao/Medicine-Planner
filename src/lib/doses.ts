@@ -41,6 +41,24 @@ export async function snoozeDose(
   return log;
 }
 
+/** Marca a toma como "não vou tomar" (ex.: o médico suspendeu, ou já a tomou por outra via). */
+export async function skipDose(
+  medicationId: string,
+  scheduledFor: string,
+  now: Date = new Date(),
+  database: PlannerDB = db,
+): Promise<DoseLog> {
+  const log: DoseLog = {
+    id: doseId(medicationId, scheduledFor),
+    medicationId,
+    scheduledFor,
+    status: "skipped",
+    updatedAt: now.toISOString(),
+  };
+  await database.doseLogs.put(log);
+  return log;
+}
+
 /** Desfaz um registo (ex.: marcado por engano). */
 export async function undoDose(medicationId: string, scheduledFor: string, database: PlannerDB = db): Promise<void> {
   await database.doseLogs.delete(doseId(medicationId, scheduledFor));

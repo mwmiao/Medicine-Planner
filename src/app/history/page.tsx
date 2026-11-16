@@ -35,6 +35,7 @@ export default function HistoryPage() {
         {days.map(({ date, doses }, i) => {
           if (!doses.length) return null;
           const taken = doses.filter((d) => d.view === "taken").length;
+          const counted = doses.filter((d) => d.view !== "skipped");
           const label = i === 0 ? m.history.today : i === 1 ? m.history.yesterday : formatDate(date, locale, { weekday: "long" });
           return (
             <Card key={toDateKey(date)}>
@@ -42,22 +43,27 @@ export default function HistoryPage() {
                 <h2 className="text-2xl font-bold">{label.charAt(0).toUpperCase() + label.slice(1)}</h2>
                 <span className="text-lg text-muted">{formatDate(date, locale, { day: "numeric", month: "short" })}</span>
               </div>
-              <p className={`mt-1 text-lg font-semibold ${taken === doses.length ? "text-taken" : "text-overdue"}`}>
-                {m.history.count(taken, doses.length)}
-              </p>
+              {counted.length > 0 ? (
+                <p className={`mt-1 text-lg font-semibold ${taken === counted.length ? "text-taken" : "text-overdue"}`}>
+                  {m.history.count(taken, counted.length)}
+                </p>
+              ) : null}
               <ul className="mt-3 divide-y divide-line">
                 {doses.map((d) => {
                   const ok = d.view === "taken";
+                  const skipped = d.view === "skipped";
                   const pendingToday = i === 0 && (d.view === "upcoming" || d.view === "due" || d.view === "snoozed");
                   return (
                     <li key={d.id} className="flex items-center gap-3 py-3">
                       <span className="w-14 text-lg font-bold tabular-nums">{d.time}</span>
                       <ColorDot color={d.medication.color} size="h-4 w-4" />
                       <span className="flex-1 text-lg break-words">{d.medication.name}</span>
-                      <span className={`text-lg font-semibold ${ok ? "text-taken" : pendingToday ? "text-muted" : "text-overdue"}`}>
+                      <span className={`text-lg font-semibold ${ok ? "text-taken" : skipped || pendingToday ? "text-muted" : "text-overdue"}`}>
                         {ok
                           ? `✓ ${d.log?.takenAt ? formatClock(d.log.takenAt) : ""}`
-                          : pendingToday
+                          : skipped
+                            ? m.today.status.skipped
+                            : pendingToday
                             ? m.today.status.upcoming
                             : m.history.notTaken}
                       </span>
