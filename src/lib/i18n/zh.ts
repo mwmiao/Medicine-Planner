@@ -64,7 +64,7 @@ export const zh: Messages = {
       overdue: "已过时间",
       snoozed: (t: string) => `推迟到 ${t}`,
       taken: (t: string) => `${t} 已服用`,
-      skipped: "未服用",
+      skipped: "已跳过",
     },
     confirmTitle: "您已经吃了这个药吗？",
     confirmBody: (name: string, dose: string, time: string) => `${name} — ${dose}，${time} 那次。`,
@@ -80,7 +80,7 @@ export const zh: Messages = {
     count: (taken: number, total: number) => `${taken} / ${total}`,
     today: "今天",
     yesterday: "昨天",
-    notTaken: "没有记录",
+    notTaken: "忘了吃",
   },
   meds: {
     title: "我的药",

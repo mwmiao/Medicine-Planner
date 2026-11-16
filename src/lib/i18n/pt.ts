@@ -70,7 +70,7 @@ export const pt = {
       overdue: "Em atraso",
       snoozed: (t: string) => `Adiado até às ${t}`,
       taken: (t: string) => `Tomado às ${t}`,
-      skipped: "Não tomado",
+      skipped: "Saltada",
     },
     confirmTitle: "Já tomou este medicamento?",
     confirmBody: (name: string, dose: string, time: string) => `${name} — ${dose}, das ${time}.`,
@@ -86,7 +86,7 @@ export const pt = {
     count: (taken: number, total: number) => `${taken} de ${total}`,
     today: "Hoje",
     yesterday: "Ontem",
-    notTaken: "Não registado",
+    notTaken: "Esquecida",
   },
   meds: {
     title: "Medicamentos",
