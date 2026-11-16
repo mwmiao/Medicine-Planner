@@ -73,7 +73,8 @@ export function generateDoses(meds: Medication[], logs: DoseLog[], date: Date, n
 }
 
 export function summarize(doses: Dose[]): { taken: number; total: number } {
-  return { taken: doses.filter((d) => d.view === "taken").length, total: doses.length };
+  const counted = doses.filter((d) => d.view !== "skipped");
+  return { taken: counted.filter((d) => d.view === "taken").length, total: counted.length };
 }
 
 /** Tomas por fazer (mantém a ordem por hora) e tomas já concluídas (tomadas ou não tomadas). */

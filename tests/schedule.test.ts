@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markTaken, snoozeDose } from "@/lib/doses";
+import { markTaken, skipDose, snoozeDose } from "@/lib/doses";
 import { generateDoses, nextDose, overdueDoseToday, splitDoses, summarize } from "@/lib/schedule";
 import type { Medication } from "@/lib/types";
 import { input, testDb } from "./helpers";
@@ -152,5 +152,52 @@ describe("medicamento acabado de adicionar", () => {
   it("no dia seguinte gera todas as tomas", () => {
     const next = new Date(2026, 9, 26, 7, 0);
     expect(generateDoses([m], [], next, next).map((d) => d.time)).toEqual(["08:00", "20:00"]);
+  });
+});
+
+describe("não vou tomar", () => {
+  it("skipDose grava o registo sem hora de toma", async () => {
+    const db = testDb();
+    const now = new Date(2026, 9, 25, 8, 5);
+    await skipDose("a", "2026-10-25T08:00", now, db);
+    const logs = await db.doseLogs.toArray();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toEqual({
+      id: "a|2026-10-25T08:00",
+      medicationId: "a",
+      scheduledFor: "2026-10-25T08:00",
+      status: "skipped",
+      updatedAt: now.toISOString(),
+    });
+    expect(logs[0].takenAt).toBeUndefined();
+  });
+
+  it("a toma fica como 'skipped' e vai para as concluídas", async () => {
+    const db = testDb();
+    const meds = [med("a", { times: ["08:00", "20:00"] })];
+    const now = new Date(2026, 9, 25, 8, 5);
+    await skipDose("a", "2026-10-25T08:00", now, db);
+    const doses = generateDoses(meds, await db.doseLogs.toArray(), SUNDAY, now);
+    expect(doses[0].view).toBe("skipped");
+    const { open, done } = splitDoses(doses);
+    expect(done.map((d) => d.time)).toEqual(["08:00"]);
+    expect(open.map((d) => d.time)).toEqual(["20:00"]);
+  });
+
+  it("summarize ignora as tomas não tomadas", async () => {
+    const db = testDb();
+    const meds = [med("a", { times: ["08:00", "12:00", "20:00"] })];
+    const now = new Date(2026, 9, 25, 12, 5);
+    await markTaken("a", "2026-10-25T08:00", now, db);
+    await skipDose("a", "2026-10-25T12:00", now, db);
+    const doses = generateDoses(meds, await db.doseLogs.toArray(), SUNDAY, now);
+    expect(summarize(doses)).toEqual({ taken: 1, total: 2 });
+  });
+
+  it("overdueDoseToday ignora uma toma passada marcada como não tomada", async () => {
+    const db = testDb();
+    const now = new Date(2026, 9, 25, 9, 0);
+    await skipDose("a", "2026-10-25T08:00", now, db);
+    expect(overdueDoseToday(med("a", { times: ["08:00"] }), await db.doseLogs.toArray(), now)).toBeUndefined();
   });
 });

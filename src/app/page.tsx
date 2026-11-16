@@ -6,7 +6,7 @@ import { DoneDoseRow, DoseCard } from "@/components/DoseCard";
 import { toast } from "@/components/Toast";
 import { Card, LinkButton, Loading, Notice, PageTitle } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
-import { markTaken, snoozeDose, undoDose } from "@/lib/doses";
+import { markTaken, skipDose, snoozeDose, undoDose } from "@/lib/doses";
 import { formatDose } from "@/lib/format";
 import { useMedications, useTodayDoses } from "@/lib/hooks";
 import { useMessages } from "@/lib/i18n";
@@ -20,8 +20,10 @@ export default function TodayPage() {
   const sync = useSyncState();
   const [confirming, setConfirming] = useState<Dose | null>(null);
   const [undoing, setUndoing] = useState<Dose | null>(null);
+  const [skipping, setSkipping] = useState<Dose | null>(null);
 
   const closeConfirm = useCallback(() => setConfirming(null), []);
+  const closeSkip = useCallback(() => setSkipping(null), []);
   const closeUndo = useCallback(() => setUndoing(null), []);
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -62,17 +64,19 @@ export default function TodayPage() {
             </LinkButton>
           </div>
         </Card>
-      ) : total === 0 ? (
+      ) : doses.length === 0 ? (
         <Notice>{m.today.noDoses}</Notice>
       ) : (
         <>
-          <div className="mb-4 rounded-3xl bg-white p-5 ring-1 ring-line">
-            <p className="text-2xl font-bold">{m.today.summary(taken, total)}</p>
-            <div className="mt-3 h-4 overflow-hidden rounded-full bg-gray-200" aria-hidden>
-              <div className="h-full rounded-full bg-taken transition-all" style={{ width: `${(taken / total) * 100}%` }} />
+          {total > 0 ? (
+            <div className="mb-4 rounded-3xl bg-white p-5 ring-1 ring-line">
+              <p className="text-2xl font-bold">{m.today.summary(taken, total)}</p>
+              <div className="mt-3 h-4 overflow-hidden rounded-full bg-gray-200" aria-hidden>
+                <div className="h-full rounded-full bg-taken transition-all" style={{ width: `${(taken / total) * 100}%` }} />
+              </div>
+              {taken === total ? <p className="mt-3 text-lg font-semibold text-taken">{m.today.allTaken}</p> : null}
             </div>
-            {taken === total ? <p className="mt-3 text-lg font-semibold text-taken">{m.today.allTaken}</p> : null}
-          </div>
+          ) : null}
           {open.length > 0 ? (
             <ul className="flex flex-col gap-4">
               {open.map((d) => (
@@ -81,6 +85,7 @@ export default function TodayPage() {
                     dose={d}
                     onTake={setConfirming}
                     onSnooze={(dose) => run(() => snoozeDose(dose.medication.id, dose.scheduledFor))}
+                    onSkip={setSkipping}
                     onUndo={setUndoing}
                   />
                 </li>
@@ -125,6 +130,27 @@ export default function TodayPage() {
       >
         {confirming ? (
           <p className="text-xl text-ink">{m.today.confirmBody(confirming.medication.name, formatDose(confirming.medication, m), confirming.time)}</p>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!skipping}
+        title={m.today.skipTitle}
+        confirmLabel={m.today.skipYes}
+        cancelLabel={m.common.cancel}
+        onCancel={closeSkip}
+        onConfirm={() => {
+          const d = skipping;
+          setSkipping(null);
+          if (d)
+            void run(async () => {
+              await skipDose(d.medication.id, d.scheduledFor);
+              toast(m.today.recorded);
+            });
+        }}
+      >
+        {skipping ? (
+          <p className="text-xl text-ink">{m.today.confirmBody(skipping.medication.name, formatDose(skipping.medication, m), skipping.time)}</p>
         ) : null}
       </ConfirmDialog>
 

@@ -61,6 +61,9 @@ export const pt = {
     taken: "Já tomei",
     snooze: "Adiar 15 min",
     undo: "Desfazer",
+    skip: "Não vou tomar",
+    skipTitle: "Não vai tomar esta dose?",
+    skipYes: "Sim, não vou tomar",
     status: {
       upcoming: "Por tomar",
       due: "Tomar agora",

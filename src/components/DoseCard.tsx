@@ -19,11 +19,13 @@ export function DoseCard({
   dose,
   onTake,
   onSnooze,
+  onSkip,
   onUndo,
 }: {
   dose: Dose;
   onTake: (d: Dose) => void;
   onSnooze: (d: Dose) => void;
+  onSkip: (d: Dose) => void;
   onUndo: (d: Dose) => void;
 }) {
   const { m } = useMessages();
@@ -59,6 +61,9 @@ export function DoseCard({
           </Button>
           <Button variant="secondary" block onClick={() => onSnooze(dose)}>
             ⏱ {m.today.snooze}
+          </Button>
+          <Button variant="ghost" block className="min-h-14 text-lg" onClick={() => onSkip(dose)}>
+            {m.today.skip}
           </Button>
         </div>
       ) : (

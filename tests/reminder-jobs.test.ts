@@ -42,6 +42,13 @@ describe("lista de lembretes para o NAS", () => {
     expect(new Date(jobs[0].at).getTime()).toBe(new Date(2026, 9, 26, 20, 15).getTime());
   });
 
+  it("não cria lembretes para tomas marcadas como não tomadas", () => {
+    const logs: DoseLog[] = [{ id: "m1|2026-10-26T08:00", medicationId: "m1", scheduledFor: "2026-10-26T08:00", status: "skipped" }];
+    const jobs = buildReminderJobs([med], logs, pt, NOW, 1);
+    expect(jobs.filter((j) => j.scheduledFor === "2026-10-26T08:00")).toHaveLength(0);
+    expect(mains(jobs).map((j) => j.scheduledFor)).toEqual(["2026-10-26T20:00"]);
+  });
+
   it("não inclui tomas que já passaram", () => {
     const jobs = mains(buildReminderJobs([med], [], pt, new Date(2026, 9, 26, 12, 0), 1));
     expect(jobs.map((j) => j.scheduledFor)).toEqual(["2026-10-26T20:00"]);

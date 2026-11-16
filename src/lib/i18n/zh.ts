@@ -55,6 +55,9 @@ export const zh: Messages = {
     taken: "我已经吃了",
     snooze: "15 分钟后提醒",
     undo: "撤销",
+    skip: "这次不吃",
+    skipTitle: "这次不吃这个药吗？",
+    skipYes: "是的，这次不吃",
     status: {
       upcoming: "待服用",
       due: "现在吃药",
