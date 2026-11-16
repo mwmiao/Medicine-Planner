@@ -33,8 +33,8 @@ fully before starting, honor its STOP conditions, and update your row when done.
 | [023](023-chinese-drug-name.md) | Chinese generic drug name under the title (from the same Claude call) | P2 | M | 019, 022 | DONE (reviewed 2026-11-15; commit 630c450 on advisor/023-chinese-drug-name, stacked on 022; not yet merged; no browser/phone check) |
 | [024](024-overdue-dose-in-lists.md) | List and detail page show "today 08:00: not taken yet" for overdue doses | P3 | S | — | DONE (reviewed 2026-11-15; commit a6f920e on advisor/024-overdue-dose, stacked on 023; not yet merged; no browser/phone check) |
 
-| [025](025-new-medicine-no-earlier-doses.md) | A newly added medicine does not show today's earlier doses as overdue | P2 | S | — | TODO |
-| [026](026-skip-dose-today.md) | "这次不吃" button: record a dose as skipped instead of falsely tapping "taken" | P2 | S–M | — | TODO |
+| [025](025-new-medicine-no-earlier-doses.md) | A newly added medicine does not show today's earlier doses as overdue | P2 | S | — | DONE (reviewed 2026-11-16; commit 29d045a on advisor/025-new-medicine-no-earlier-doses, off main; not yet merged; no browser/phone check) |
+| [026](026-skip-dose-today.md) | "这次不吃" button: record a dose as skipped instead of falsely tapping "taken" | P2 | S–M | — | DONE (reviewed 2026-11-16, 1 revision round to rebase onto 025; commit ac4d31d on advisor/026-skip-dose-today, off main; not yet merged; no browser/phone check) |
 
 Plans 025–026 were added on 2026-11-16 against commit `97ba274` from a walkthrough as the Chinese-speaking user. Run 025 first, then 026, one at a time (both edit `src/lib/schedule.ts` and `tests/schedule.test.ts`; 026 also adds keys to `pt.ts`/`zh.ts`).
 
