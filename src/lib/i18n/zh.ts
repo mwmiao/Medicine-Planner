@@ -142,6 +142,7 @@ export const zh: Messages = {
     color: "药盒颜色（方便辨认）",
     noColor: "不选颜色",
     infarmedSection: "官方信息",
+    moreInfo: "更多信息（可不填）",
     errors: {
       nameRequired: "请写上药品名称。",
       quantityInvalid: "用量要大于 0。",

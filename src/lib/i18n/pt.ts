@@ -148,6 +148,7 @@ export const pt = {
     color: "Cor da caixa (para reconhecer)",
     noColor: "Sem cor",
     infarmedSection: "Informação oficial",
+    moreInfo: "Mais informações (opcional)",
     errors: {
       nameRequired: "Escreva o nome do medicamento.",
       quantityInvalid: "Indique uma quantidade maior que zero.",
