@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markTaken, skipDose, snoozeDose } from "@/lib/doses";
-import { generateDoses, nextDose, overdueDoseToday, splitDoses, summarize } from "@/lib/schedule";
+import { generateDoses, nextDose, overdueDoseToday, splitDoses, splitOpenDoses, summarize } from "@/lib/schedule";
 import type { Medication } from "@/lib/types";
 import { input, testDb } from "./helpers";
 
@@ -119,6 +119,51 @@ describe("separar tomas por fazer e concluídas", () => {
     const { open, done } = splitDoses(skipped);
     expect(done).toHaveLength(1);
     expect(open).toHaveLength(1);
+  });
+});
+
+describe("tomas com botões e tomas mais tarde", () => {
+  it("só a primeira toma futura leva botões", () => {
+    const meds = [med("a", { times: ["08:00", "12:00", "20:00"] })];
+    const { open } = splitDoses(generateDoses(meds, [], SUNDAY, SUNDAY));
+    const { actionable, later } = splitOpenDoses(open);
+    expect(actionable.map((d) => d.time)).toEqual(["08:00"]);
+    expect(later.map((d) => d.time)).toEqual(["12:00", "20:00"]);
+  });
+
+  it("toma atrasada mais a próxima futura levam botões", () => {
+    const meds = [med("a", { times: ["08:00", "12:00", "20:00"] })];
+    const now = new Date(2026, 9, 25, 10, 0);
+    const { open } = splitDoses(generateDoses(meds, [], SUNDAY, now));
+    const { actionable, later } = splitOpenDoses(open);
+    expect(actionable.map((d) => `${d.time} ${d.view}`)).toEqual(["08:00 overdue", "12:00 upcoming"]);
+    expect(later.map((d) => d.time)).toEqual(["20:00"]);
+  });
+
+  it("toma a horas e toma adiada levam botões e não sobra nada para mais tarde", async () => {
+    const db = testDb();
+    const meds = [med("a", { name: "A", times: ["08:00"] }), med("b", { name: "B", times: ["07:00"] })];
+    const now = new Date(2026, 9, 25, 8, 5);
+    await snoozeDose("b", "2026-10-25T07:00", now, db);
+    const { open } = splitDoses(generateDoses(meds, await db.doseLogs.toArray(), SUNDAY, now));
+    const { actionable, later } = splitOpenDoses(open);
+    expect(actionable.map((d) => `${d.time} ${d.view}`)).toEqual(["07:00 snoozed", "08:00 due"]);
+    expect(later).toEqual([]);
+  });
+
+  it("sem tomas por fazer as duas listas ficam vazias", () => {
+    expect(splitOpenDoses([])).toEqual({ actionable: [], later: [] });
+  });
+
+  it("duas tomas à mesma hora levam botões; a das 20:00 fica para mais tarde", () => {
+    const meds = [
+      med("a", { name: "A", times: ["08:00"] }),
+      med("b", { name: "B", times: ["08:00", "20:00"] }),
+    ];
+    const { open } = splitDoses(generateDoses(meds, [], SUNDAY, SUNDAY));
+    const { actionable, later } = splitOpenDoses(open);
+    expect(actionable.map((d) => d.id)).toEqual(["a|2026-10-25T08:00", "b|2026-10-25T08:00"]);
+    expect(later.map((d) => d.id)).toEqual(["b|2026-10-25T20:00"]);
   });
 });
 

@@ -46,6 +46,7 @@ export const zh: Messages = {
   today: {
     recorded: "已记录 ✓",
     doneTitle: "已完成",
+    laterTitle: "今天晚些时候",
     title: "今天",
     summary: (taken: number, total: number) => `已吃 ${taken} 次，共 ${total} 次`,
     allTaken: "很好！今天的药都吃完了。",

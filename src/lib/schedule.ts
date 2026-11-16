@@ -83,6 +83,19 @@ export function splitDoses(doses: Dose[]): { open: Dose[]; done: Dose[] } {
   return { open: doses.filter((d) => !finished(d)), done: doses.filter(finished) };
 }
 
+/**
+ * Das tomas por fazer, só as que precisam de atenção agora (hora chegada, atrasadas, adiadas)
+ * e a próxima ainda futura levam botões; as restantes tomas futuras ficam numa linha simples.
+ */
+export function splitOpenDoses(open: Dose[]): { actionable: Dose[]; later: Dose[] } {
+  const nextAt = open.find((d) => d.view === "upcoming")?.scheduledFor;
+  const isNext = (d: Dose) => d.view === "upcoming" && d.scheduledFor === nextAt;
+  return {
+    actionable: open.filter((d) => d.view !== "upcoming" || isNext(d)),
+    later: open.filter((d) => d.view === "upcoming" && !isNext(d)),
+  };
+}
+
 /** Próxima toma futura (não tomada) de um medicamento, procurando até 60 dias à frente. */
 export function nextDose(med: Medication, logs: DoseLog[], now: Date = new Date()): string | undefined {
   const byId = new Map(logs.map((l) => [l.id, l]));
