@@ -138,7 +138,7 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     openfda: { generic_name: ["ATOVAQUONE"], substance_name: ["ATOVAQUONE"], brand_name: ["ATOVAQUONE"] },
   };
   const secs = (purpose: string[]) => ({ purpose, howToTake: [], missedDose: [], sideEffects: [], warnings: [], storage: [] });
-  const out = { legible: true, zh: secs(["用于预防肺孢子菌肺炎。"]), en: secs(["Prevents Pneumocystis pneumonia."]) };
+  const out = { legible: true, zh: secs(["用于预防肺孢子菌肺炎。"]), pt: secs(["Previne a pneumonia por Pneumocystis."]), en: secs(["Prevents Pneumocystis pneumonia."]) };
   const input = { name: "Atovaquona Kabi", activeSubstance: "Atovaquona", strength: "750 mg/5 ml", form: "Suspensão oral" };
 
   /** Responde por URL: a Anthropic consome a fila; o openFDA devolve o JSON (ou erro). */
@@ -171,11 +171,13 @@ describe("serviço de IA (instruções a partir da etiqueta pública)", () => {
     expect(r.body.nameZh).toBe("阿托伐醌");
     expect(r.body.zh.purpose).toEqual(["用于预防肺孢子菌肺炎。"]);
     expect(r.body.en).toBeDefined();
+    expect(r.body.pt.purpose).toEqual(["Previne a pneumonia por Pneumocystis."]);
     expect(r.body.sourceUrl).toBe("https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=03ddcc33-729c-4d46-ae6b-2ee47978ba16");
     expect(r.body.sourceName).toContain("FDA");
     const second = JSON.parse(String(f.anthropicCalls()[1].init.body));
     expect(JSON.stringify(second.messages)).toContain("once daily with food");
     expect(second.system).toContain("Simplified Chinese");
+    expect(second.system).toContain("European Portuguese");
     expect(second.system).toContain("US");
   });
 

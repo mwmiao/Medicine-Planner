@@ -75,6 +75,7 @@ describe("cliente de IA (instruções)", () => {
   const found = {
     found: true,
     zh: { purpose: ["用于预防肺炎。"] },
+    pt: { purpose: ["Previne a pneumonia."] },
     en: { purpose: ["Prevents pneumonia."] },
     sourceName: "DailyMed / US FDA drug label (ATOVAQUONE)",
     sourceUrl: "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=03ddcc33-729c-4d46-ae6b-2ee47978ba16",

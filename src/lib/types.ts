@@ -41,6 +41,7 @@ export type MedicalInfo = {
   sourceUrl?: string;
   sourceName?: string;
   nameZh?: string; // nome genérico em chinês (da etiqueta pública)
+  pt?: Partial<Record<MedicalInfoSection, string[]>>; // versão em português do mesmo texto (só fonte "web"); os campos acima ficam em chinês
   originalLanguage?: "pt" | "en";
 };
 

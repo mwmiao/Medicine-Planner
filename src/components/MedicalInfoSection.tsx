@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { aiAvailable, findInstructions } from "@/lib/ai";
 import { formatIsoDate, formatPharmaceuticalForm } from "@/lib/format";
 import { useMessages } from "@/lib/i18n";
 import { getSync, useSyncState } from "@/lib/sync";
 import { MEDICAL_INFO_SECTIONS, type InfoSource, type MedicalInfo, type MedicalInfoSection as SectionKey, type Medication } from "@/lib/types";
 import { BulletListEditor } from "./BulletListEditor";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { toast } from "./Toast";
 import { LeafletTranslator } from "./LeafletTranslator";
 import { AiWorking, Button, ExternalLink, Notice, Select } from "./ui";
@@ -70,6 +71,8 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
   const [draft, setDraft] = useState<MedicalInfo>(() => med.medicalInfo ?? { source: "manual", lastReviewedAt: "" });
   const [auto, setAuto] = useState<"idle" | "searching" | "notFound" | "failed">("idle");
   const autoStarted = useRef(false);
+  const [confirmRefresh, setConfirmRefresh] = useState(false);
+  const closeRefresh = useCallback(() => setConfirmRefresh(false), []);
 
   const info = med.medicalInfo;
   const connected = getSync().connected;
@@ -96,6 +99,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
       if (r.sourceName) next.sourceName = r.sourceName;
       if (r.nameZh) next.nameZh = r.nameZh;
       for (const k of MEDICAL_INFO_SECTIONS) next[k] = r.zh[k] ?? [];
+      next.pt = r.pt;
       await onSave(next);
       setAuto("idle");
     } catch {
@@ -121,7 +125,10 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info, connected, med.id]);
 
-  const has = (k: SectionKey) => (info?.[k] ?? []).some((l) => l.trim());
+  // Texto da etiqueta pública: em português mostra a versão portuguesa, se existir; o resto fica em chinês.
+  const shown = locale === "pt" && info?.source === "web" && info.pt ? info.pt : info;
+  const onlyChinese = locale === "pt" && info?.source === "web" && !info.pt;
+  const has = (k: SectionKey) => (shown?.[k] ?? []).some((l) => l.trim());
 
   const startEdit = () => {
     setDraft(med.medicalInfo ?? { source: med.infarmed?.matched ? "leaflet" : "manual", lastReviewedAt: "" });
@@ -139,6 +146,8 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
     if (draft.sourceUrl) cleaned.sourceUrl = draft.sourceUrl;
     if (draft.sourceName) cleaned.sourceName = draft.sourceName;
     if (draft.nameZh) cleaned.nameZh = draft.nameZh;
+    // A versão portuguesa só se mantém se o texto em chinês não foi editado.
+    if (draft.pt && MEDICAL_INFO_SECTIONS.every((k) => JSON.stringify(cleaned[k] ?? []) === JSON.stringify((info?.[k] ?? []).map((l) => l.trim()).filter(Boolean)))) cleaned.pt = draft.pt;
     if (draft.originalLanguage) cleaned.originalLanguage = draft.originalLanguage;
     await onSave(cleaned);
     setEditing(false);
@@ -220,6 +229,14 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
                 <div className="mb-3 flex flex-col gap-3">
                   <Notice tone="warn">{m.info.webNotice}</Notice>
                   {info.sourceUrl ? <ExternalLink href={info.sourceUrl}>{m.info.sourceLink}: {info.sourceName ?? info.sourceUrl}</ExternalLink> : null}
+                  {onlyChinese ? (
+                    <>
+                      <Notice tone="warn">{m.info.onlyChinese}</Notice>
+                      <Button variant="secondary" block onClick={() => setConfirmRefresh(true)}>
+                        {m.info.refreshPt}
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               ) : info?.translatedBy === "ai" ? (
                 <div className="mb-3">
@@ -230,7 +247,7 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
                 {MEDICAL_INFO_SECTIONS.map((k) => {
                   // "Se se esquecer" e "avisos" mostram sempre a orientação segura.
                   if (!has(k) && k !== "missedDose" && k !== "warnings") return null;
-                  const items = (info?.[k] ?? []).filter((l) => l.trim());
+                  const items = (shown?.[k] ?? []).filter((l) => l.trim());
                   if (k === "purpose" || k === "howToTake") {
                     return (
                       <div key={k}>
@@ -335,6 +352,20 @@ export function MedicalInfoSection({ med, onSave }: { med: Medication; onSave: (
           ) : null}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmRefresh}
+        title={m.info.refreshPt}
+        confirmLabel={m.info.refreshPtYes}
+        cancelLabel={m.common.cancel}
+        onCancel={closeRefresh}
+        onConfirm={() => {
+          setConfirmRefresh(false);
+          void autoSearch();
+        }}
+      >
+        {m.info.refreshPtBody}
+      </ConfirmDialog>
     </div>
   );
 }

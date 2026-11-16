@@ -282,6 +282,10 @@ export const zh: Messages = {
     autoRetry: "重新查找",
     webNotice: "这是根据美国公开药品标签（同一种成分）自动整理的中文摘要，不是葡萄牙语说明书。请以医生的嘱咐和药盒为准，并向药剂师确认。",
     sourceLink: "来源",
+    onlyChinese: "这段说明只保存了中文。可以重新查找，同时得到葡萄牙语版本。",
+    refreshPt: "重新查找（含葡萄牙语）",
+    refreshPtYes: "替换",
+    refreshPtBody: "现有的说明会被新的中文和葡萄牙语版本替换。如果您手动修改过，修改会丢失。",
   },
   reminders: {
     dueNow: (name: string) => `该吃药了：${name}`,

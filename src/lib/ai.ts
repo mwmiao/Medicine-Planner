@@ -43,7 +43,7 @@ export async function readBoxPhoto(image: { mediaType: string; data: string }, i
 
 export type InstructionsResult =
   | { found: false }
-  | { found: true; zh: Sections; en: Sections; sourceName?: string; sourceUrl?: string; nameZh?: string };
+  | { found: true; zh: Sections; pt: Sections; en: Sections; sourceName?: string; sourceUrl?: string; nameZh?: string };
 
 /** Instruções em chinês a partir de uma etiqueta pública (openFDA) da mesma substância ativa. */
 export async function findInstructions(
